@@ -12,11 +12,16 @@ export const metadata: Metadata = {
   creator: "MAPIM Strategic Centre",
   publisher: "MAPIM Strategic Centre",
   robots: "index, follow",
-  metadataBase: new URL('https://mapim.dev'),
+  metadataBase: new URL('https://magic.mapim.dev'),
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://mapim.dev",
+    url: "https://magic.mapim.dev",
     siteName: "MAPIM Strategic Centre",
     title: "MAPIM Strategic Centre - MAGIC Digital Initiatives",
     description: "Advancing Malaysia's Digital Humanitarian Future through cutting-edge technology initiatives.",
