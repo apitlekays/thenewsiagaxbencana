@@ -55,6 +55,8 @@ This platform provides comprehensive disaster monitoring capabilities including:
 
 ### Installation
 
+#### Option 1: Local Development
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>
@@ -80,6 +82,23 @@ pnpm dev
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+#### Option 2: Docker Development
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd thenewsiagaxbencana
+```
+
+2. Start development environment with Docker:
+```bash
+docker-compose --profile dev up --build
+```
+
+3. Open [http://localhost:3001](http://localhost:3001) in your browser
+
+For detailed Docker instructions, see [DOCKER.md](./DOCKER.md).
 
 ## Project Structure
 
@@ -132,13 +151,26 @@ The platform aggregates data from:
 ## Deployment
 
 ### Production Build
+
+#### Local Production
 ```bash
 npm run build
 npm start
 ```
 
+#### Docker Production
+```bash
+# Build and start production environment
+docker-compose --profile prod up --build
+
+# Run in detached mode
+docker-compose --profile prod up -d --build
+```
+
 ### Environment Variables
 Create a `.env.local` file for any required environment variables.
+
+For production deployment with Docker, see [DOCKER.md](./DOCKER.md) for detailed instructions.
 
 ## Contributing
 
