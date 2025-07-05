@@ -1,12 +1,13 @@
 {
   "name": "mapim-strategic-centre",
-  "version": "0.1.0",
+  "version": "1.0.3",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/set-version.js && next dev",
+    "build": "node scripts/set-version.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "set-version": "node scripts/set-version.js"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.14.2",

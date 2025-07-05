@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FaShieldAlt, FaLock, FaEye, FaDatabase, FaUserShield } from "react-icons/fa";
+import { getAppVersion } from "@/utils/version";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - MAPIM Strategic Centre",
@@ -141,7 +142,7 @@ export default function PrivacyPolicy() {
       <footer className="bg-gray-800 border-t border-gray-700 mt-12">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} MAPIM Strategic Centre. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} MAPIM Strategic Centre. All rights reserved. v{getAppVersion()}</p>
             <div className="mt-2 space-x-4">
               <Link href="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
               <Link href="/disclaimer" className="text-blue-400 hover:text-blue-300">Disclaimer</Link>

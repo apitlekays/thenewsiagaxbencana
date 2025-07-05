@@ -4,6 +4,7 @@ import { FaMapMarkedAlt, FaShieldAlt, FaChartLine, FaRocket, FaArrowRight } from
 import { Metadata } from 'next';
 import LottieBackground from '../components/LottieBackground';
 import EmailLink from '@/components/EmailLink';
+import { getAppVersion } from '@/utils/version';
 
 // Generate metadata for the home page
 export const generateMetadata = (): Metadata => {
@@ -271,7 +272,10 @@ export default function Home() {
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
             <p>&copy; {new Date().getFullYear()} MAPIM Strategic Centre. All rights reserved.</p>
             <div className="mt-2 space-x-4">
+              <span className="text-gray-500">v{getAppVersion()}</span>
+              <span className="text-gray-600">•</span>
               <Link href="/privacy" className="text-blue-400 hover:text-blue-300 transition-colors">Privacy Policy</Link>
+              <span className="text-gray-600">•</span>
               <Link href="/disclaimer" className="text-blue-400 hover:text-blue-300 transition-colors">Disclaimer</Link>
             </div>
           </div>

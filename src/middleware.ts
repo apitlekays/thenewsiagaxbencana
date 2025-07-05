@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     
     // Add request logging (in production, use proper logging service)
-    console.log(`[${new Date().toISOString()}] ${request.method} ${request.nextUrl.pathname} - ${request.headers.get('user-agent') || 'Unknown'}`);
+    //console.log(`[${new Date().toISOString()}] ${request.method} ${request.nextUrl.pathname} - ${request.headers.get('user-agent') || 'Unknown'}`);
     
     return response;
   }

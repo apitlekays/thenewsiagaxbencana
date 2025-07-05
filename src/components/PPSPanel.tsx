@@ -73,8 +73,25 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
         return res.json();
       })
       .then((data: unknown) => {
-        if (!Array.isArray(data)) { setPoints([]); setLoading(false); return; }
-        setPoints(data as PPSPoint[]);
+        if (!Array.isArray(data)) { 
+          setPoints([]); 
+          setLoading(false); 
+          return; 
+        }
+        
+        // Filter out empty objects and objects without required fields
+        const validPoints = (data as PPSPoint[]).filter(point => {
+          // Check if the object has the required fields and they're not empty
+          return point && 
+                 point.id && 
+                 point.nama && 
+                 point.negeri && 
+                 point.daerah && 
+                 point.mukim &&
+                 Object.keys(point).length > 1; // Ensure it's not just an empty object
+        });
+        
+        setPoints(validPoints);
         setLoading(false);
       })
       .catch(() => {
@@ -104,7 +121,10 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
         {loading && <div className="text-blue-300 text-center">Loading...</div>}
         {error && <div className="text-red-400 text-center">{error}</div>}
         {!loading && !error && points.length === 0 && (
-          <div className="text-blue-300 text-center">No PPS open at this time.</div>
+          <div className="text-blue-300 text-center py-4">
+            <div className="text-sm font-medium mb-2">No PPS Currently Open</div>
+            <div className="text-xs text-blue-400">All Pusat Pemindahan Sementara are currently closed. Check back later for updates.</div>
+          </div>
         )}
         {!loading && !error && points.map((p) => (
           <div key={p.id} className="space-y-2">

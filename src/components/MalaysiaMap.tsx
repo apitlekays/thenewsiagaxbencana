@@ -8,6 +8,7 @@ import { useCurrentAlerts } from '@/hooks/useCurrentAlerts';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
 import { useMap } from '@/contexts/MapContext';
 import type { Alert } from '@/contexts/MapContext';
+import { getAppVersion } from '@/utils/version';
 
 const MALAYSIA_BOUNDS: [number, number, number, number] = [90, -9, 130, 15]; // [west, south, east, north] - covers ASEAN countries
 const MALAYSIA_CENTER = [103.5, 4.5]; // [lng, lat] - centered on Peninsular Malaysia
@@ -52,7 +53,7 @@ function AlertMarkers() {
 
   // Debug logging
   useEffect(() => {
-    console.log('AlertMarkers: alerts count:', alerts.length, 'mapLoaded:', mapLoaded, 'alerts:', alerts);
+    //console.log('AlertMarkers: alerts count:', alerts.length, 'mapLoaded:', mapLoaded, 'alerts:', alerts);
   }, [alerts, mapLoaded]);
 
   useEffect(() => {
@@ -98,19 +99,19 @@ function AlertMarkers() {
   // Filter alerts with valid coordinates
   const validAlerts = alerts.filter(alert => {
     if (!alert.latitude || !alert.longitude) {
-      console.log('Alert missing coordinates:', alert.station_id, alert.latitude, alert.longitude);
+      //console.log('Alert missing coordinates:', alert.station_id, alert.latitude, alert.longitude);
       return false;
     }
     const lat = parseFloat(alert.latitude);
     const lng = parseFloat(alert.longitude);
     if (isNaN(lat) || isNaN(lng)) {
-      console.log('Alert has invalid coordinates:', alert.station_id, alert.latitude, alert.longitude);
+      //console.log('Alert has invalid coordinates:', alert.station_id, alert.latitude, alert.longitude);
       return false;
     }
     return true;
   });
 
-  console.log('Valid alerts for markers:', validAlerts.length);
+  //console.log('Valid alerts for markers:', validAlerts.length);
 
   return (
     <>
@@ -212,11 +213,45 @@ function PPSMarkers() {
 
   const fetchPPSData = () => {
     fetch('https://n8n.drhafizhanif.net/webhook/pps-buka')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch PPS data');
+        return res.json();
+      })
       .then((data: unknown) => {
-        if (!Array.isArray(data)) { setPoints([]); return; }
-        const allPoints = (data as Array<{ points?: Array<{ id: number; longi: number; latti: number; [key: string]: unknown }> }>).flatMap((item) => item.points || []);
-        setPoints(allPoints);
+        if (!Array.isArray(data)) { 
+          setPoints([]); 
+          return; 
+        }
+        
+        // Filter out empty objects and objects without required fields
+        const validData = (data as Array<{ points?: Array<{ id: number; longi: number; latti: number; [key: string]: unknown }> }>).filter(item => {
+          return item && 
+                 item.points && 
+                 Array.isArray(item.points) && 
+                 item.points.length > 0 &&
+                 Object.keys(item).length > 0; // Ensure it's not just an empty object
+        });
+        
+        const allPoints = validData.flatMap((item) => item.points || []);
+        
+        // Further filter points to ensure they have valid coordinates
+        const validPoints = allPoints.filter(point => {
+          return point && 
+                 point.id && 
+                 point.longi && 
+                 point.latti &&
+                 typeof point.longi === 'number' && 
+                 typeof point.latti === 'number' &&
+                 !isNaN(point.longi) && 
+                 !isNaN(point.latti) &&
+                 Object.keys(point).length > 1; // Ensure it's not just an empty object
+        });
+        
+        setPoints(validPoints);
+      })
+      .catch((error) => {
+        console.error('Error fetching PPS data:', error);
+        setPoints([]);
       });
   };
 
@@ -320,11 +355,14 @@ const MapControls = () => {
 // Copyright Footer Component
 const CopyrightFooter = () => {
   const currentYear = new Date().getFullYear();
+  const appVersion = getAppVersion();
   
   return (
     <div className="fixed bottom-2 right-2 z-40 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded shadow-lg border border-gray-200 hidden md:block">
       <div className="flex items-center gap-2">
         <span className="font-semibold text-gray-800">© {currentYear} SiagaX & MAPIM Malaysia</span>
+        <span className="text-gray-400">•</span>
+        <span className="text-gray-500">v{appVersion}</span>
         <span className="text-gray-400">•</span>
         <a 
           href="/privacy" 

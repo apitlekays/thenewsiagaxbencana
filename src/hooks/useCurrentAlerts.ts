@@ -54,7 +54,7 @@ export function useCurrentAlerts(intervalMs: number = 60000) {
       }
       const data = await res.json();
       if (Array.isArray(data)) {
-        console.log('Fetched alerts:', data.length);
+        //console.log('Fetched alerts:', data.length);
         globalAlerts = data;
         setAlerts(data);
         // Notify all listeners
@@ -80,7 +80,7 @@ export function useCurrentAlerts(intervalMs: number = 60000) {
       
       // If no global interval exists, create one
       if (!globalInterval) {
-        console.log('Initializing global alerts fetch with interval:', intervalMs);
+        //console.log('Initializing global alerts fetch with interval:', intervalMs);
         fetchAlerts(); // Initial fetch
         globalInterval = setInterval(fetchAlerts, intervalMs);
       }
@@ -98,7 +98,7 @@ export function useCurrentAlerts(intervalMs: number = 60000) {
 
   useEffect(() => {
     const handleRefresh = () => {
-      console.log('Manual refresh triggered');
+      //console.log('Manual refresh triggered');
       fetchAlerts();
     };
     
