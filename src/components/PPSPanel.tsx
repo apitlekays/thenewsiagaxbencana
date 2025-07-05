@@ -90,7 +90,7 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
   }, []);
 
   return (
-    <div ref={ref} className="w-[500px] max-w-full bg-gray-900/90 backdrop-blur-md rounded-sm border border-blue-800 shadow-2xl transition-all duration-500 ease-in-out flex flex-col">
+    <div ref={ref} className="w-[500px] max-w-full bg-gray-900/90 backdrop-blur-md rounded-sm border border-blue-800 shadow-2xl transition-all duration-500 ease-in-out flex flex-col hidden md:flex">
       <div className="flex items-center justify-between px-6 py-3 border-b border-blue-800">
         <div className="flex items-center gap-3">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

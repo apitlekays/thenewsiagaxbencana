@@ -45,9 +45,15 @@ function getSeverityColor(alert: Alert): string {
 
 function AlertMarkers() {
   const alerts: Alert[] = useCurrentAlerts(60000);
+  const { mapLoaded } = useMap();
   const [popupInfo, setPopupInfo] = useState<Alert | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('AlertMarkers: alerts count:', alerts.length, 'mapLoaded:', mapLoaded, 'alerts:', alerts);
+  }, [alerts, mapLoaded]);
 
   useEffect(() => {
     const handleMapClick = () => setPopupInfo(null);
@@ -84,12 +90,33 @@ function AlertMarkers() {
     };
   }, []);
 
+  // Don't render markers until map is loaded
+  if (!mapLoaded) {
+    return null;
+  }
+
+  // Filter alerts with valid coordinates
+  const validAlerts = alerts.filter(alert => {
+    if (!alert.latitude || !alert.longitude) {
+      console.log('Alert missing coordinates:', alert.station_id, alert.latitude, alert.longitude);
+      return false;
+    }
+    const lat = parseFloat(alert.latitude);
+    const lng = parseFloat(alert.longitude);
+    if (isNaN(lat) || isNaN(lng)) {
+      console.log('Alert has invalid coordinates:', alert.station_id, alert.latitude, alert.longitude);
+      return false;
+    }
+    return true;
+  });
+
+  console.log('Valid alerts for markers:', validAlerts.length);
+
   return (
     <>
-      {alerts.map(alert => {
-        if (!alert.latitude || !alert.longitude) return null;
-        const lat = parseFloat(alert.latitude);
-        const lng = parseFloat(alert.longitude);
+      {validAlerts.map(alert => {
+        const lat = parseFloat(alert.latitude!);
+        const lng = parseFloat(alert.longitude!);
         const color = getSeverityColor(alert);
         const isSelected = selectedMarkerId === alert.station_id;
         
@@ -266,7 +293,7 @@ const MapControls = () => {
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-3">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-3 hidden md:flex">
       <button
         onClick={refreshPage}
         className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
@@ -295,7 +322,7 @@ const CopyrightFooter = () => {
   const currentYear = new Date().getFullYear();
   
   return (
-    <div className="fixed bottom-2 right-2 z-40 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded shadow-lg border border-gray-200">
+    <div className="fixed bottom-2 right-2 z-40 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded shadow-lg border border-gray-200 hidden md:block">
       <div className="flex items-center gap-2">
         <span className="font-semibold text-gray-800">© {currentYear} SiagaX & MAPIM Malaysia</span>
         <span className="text-gray-400">•</span>
@@ -316,6 +343,27 @@ const CopyrightFooter = () => {
         >
           Disclaimer
         </a>
+      </div>
+    </div>
+  );
+};
+
+// Mobile Overlay Component
+const MobileOverlay = () => {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+      <div className="bg-black/70 backdrop-blur-sm text-white p-4 border-t border-gray-600">
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex-shrink-0">
+            <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium">View on larger screens for additional controls</p>
+            <p className="text-xs text-gray-300 mt-1">Alerts and other detailed information are available on desktop</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -379,6 +427,7 @@ export default function MalaysiaMap() {
       </Map>
       <MapControls />
       <CopyrightFooter />
+      <MobileOverlay />
     </div>
   );
 } 

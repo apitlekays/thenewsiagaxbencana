@@ -175,7 +175,7 @@ For production deployment with Docker, see [DOCKER.md](./DOCKER.md) for detailed
 ## Contributing
 
 This project is developed by MAPIM Strategic Centre. For contributions or inquiries, please contact:
-- Email: salam@mapim.org
+- Email: s***m@m***m.org
 - Phone: +60 13-3158684
 
 ## Legal

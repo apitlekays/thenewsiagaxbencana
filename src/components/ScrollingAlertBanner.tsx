@@ -11,7 +11,7 @@ export default function ScrollingAlertBanner() {
   const repeatedMessage = Array(3).fill(message).join('   •   ');
 
   return (
-    <div className="fixed top-4 right-6 w-full z-50 pointer-events-none flex justify-end">
+    <div className="fixed top-4 right-6 w-full z-50 pointer-events-none flex justify-end hidden md:flex">
       <div className="relative flex items-center w-[80vw] h-10 bg-gray-900/80 shadow-md overflow-hidden rounded-tr-sm rounded-br-sm">
         {/* Marquee text (runs under label) */}
         <div className="absolute left-0 top-0 w-full h-full flex items-center overflow-hidden whitespace-nowrap">

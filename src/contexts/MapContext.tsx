@@ -66,7 +66,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
     setCurrentAlert(alert);
     setIsIncidentPanelVisible(true);
     
-    // Dispatch marker selection event
+    // Dispatch marker selection event with original station_id
+    // Use the original station_id from the alert object, not the sanitized one
     window.dispatchEvent(new CustomEvent('marker-select', {
       detail: { stationId: alert.station_id }
     }));

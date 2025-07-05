@@ -38,7 +38,7 @@ function AppContent() {
   return (
     <>
       {/* Back Button */}
-      <div className="fixed top-4 left-4 z-50">
+      <div className="fixed top-4 left-4 z-50 hidden md:block">
         <Link 
           href="/"
           className="inline-flex items-center px-4 py-2 bg-white text-gray-700 font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-colors border border-gray-200"
@@ -51,7 +51,7 @@ function AppContent() {
       <WaterRainAlertPanel />
       <ScrollingAlertBanner />
       <MalaysiaMap />
-      <div className="fixed right-6 top-15 z-50 flex flex-col items-end gap-2" style={{ maxWidth: '95vw' }}>
+      <div className="fixed right-6 top-15 z-50 flex flex-col items-end gap-2 hidden md:flex" style={{ maxWidth: '95vw' }}>
         <PPSPanel ref={ppsPanelRef} />
         <IncidentDetailsPanel 
           alert={currentAlert}

@@ -165,9 +165,9 @@ export default function Disclaimer() {
                 For questions about this disclaimer or platform usage:
               </p>
               <div className="text-gray-300 space-y-2">
-                <p><strong>Email:</strong> legal@mapim.dev</p>
+                <p><strong>Email:</strong> s***m@m***m.org</p>
                 <p><strong>Address:</strong> MAPIM Strategic Centre, Malaysia</p>
-                <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
+                <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               </div>
             </div>
           </section>

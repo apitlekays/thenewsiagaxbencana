@@ -5,6 +5,10 @@ import { FaTimes, FaExclamationTriangle, FaWater, FaCloudRain, FaMapMarkerAlt, F
 import WaterLevelChart from './WaterLevelChart';
 import RainfallLevelChart from './RainfallLevelChart';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
+import { 
+  sanitizeStationId,
+  sanitizeUrl 
+} from '@/utils/security';
 
 interface Alert {
   station_id: string;
@@ -59,13 +63,32 @@ export default function IncidentDetailsPanel({ alert, isVisible, onClose, }: Inc
 
   useEffect(() => {
     if (!alert || !isVisible) return;
+    
+    // Sanitize station ID before making API calls
+    const sanitizedStationId = sanitizeStationId(alert.station_id);
+    if (!sanitizedStationId) {
+      setError('Invalid station ID');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setFetched(null);
     setRainFetched(null);
+    
+    // Sanitize URLs before fetching
+    const waterUrl = sanitizeUrl(`https://n8n.drhafizhanif.net/webhook/water-lvl-query?stationID=${sanitizedStationId}`);
+    const rainUrl = sanitizeUrl(`https://n8n.drhafizhanif.net/webhook/rainfall-lvl-query?stationID=${sanitizedStationId}`);
+    
+    if (!waterUrl || !rainUrl) {
+      setError('Invalid API endpoint');
+      setLoading(false);
+      return;
+    }
+    
     // Fetch both endpoints in parallel
     Promise.all([
-      fetch(`https://n8n.drhafizhanif.net/webhook/water-lvl-query?stationID=${alert.station_id}`)
+      fetch(waterUrl)
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch incident details');
           return res.json();
@@ -76,7 +99,7 @@ export default function IncidentDetailsPanel({ alert, isVisible, onClose, }: Inc
           setFetched(result);
         })
         .catch(() => setFetched(null)),
-      fetch(`https://n8n.drhafizhanif.net/webhook/rainfall-lvl-query?stationID=${alert.station_id}`)
+      fetch(rainUrl)
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch rainfall details');
           return res.json();
@@ -101,7 +124,7 @@ export default function IncidentDetailsPanel({ alert, isVisible, onClose, }: Inc
 
   return (
     <div
-      className={`z-50 w-[500px] max-w-full bg-gray-900/70 backdrop-blur-md rounded-sm border border-gray-800 shadow-2xl transition-all duration-500 ease-in-out ${
+      className={`z-50 w-[500px] max-w-full bg-gray-900/70 backdrop-blur-md rounded-sm border border-gray-800 shadow-2xl transition-all duration-500 ease-in-out hidden md:block ${
         isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
       }`}
     >

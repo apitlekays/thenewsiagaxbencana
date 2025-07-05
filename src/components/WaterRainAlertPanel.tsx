@@ -1,8 +1,17 @@
+'use client';
+
 import { useCurrentAlerts } from '@/hooks/useCurrentAlerts';
 import { FaBell, FaChevronRight, FaWater, FaCloudRain, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
 import { useMap } from '@/contexts/MapContext';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
 import { useState, useEffect } from 'react';
+import { 
+  sanitizeText, 
+  validateLatitude, 
+  validateLongitude, 
+  sanitizeNumber,
+  sanitizeStationId,
+} from '@/utils/security';
 
 interface Alert {
   station_id: string;
@@ -56,18 +65,42 @@ export default function WaterRainAlertPanel() {
     return () => window.removeEventListener('refresh-map-data', handleRefresh);
   }, []);
 
-  const handleAlertClick = (alert: Alert) => {
-    // Check if we have latitude and longitude data
-    if (alert.latitude && alert.longitude) {
-      const lat = parseFloat(alert.latitude);
-      const lng = parseFloat(alert.longitude);
+  const handleAlertClick = (sanitizedAlert: Alert) => {
+    // Find the original alert data to ensure station_id matches
+    const originalAlert = alerts.find(original => 
+      sanitizeStationId(original.station_id) === sanitizedAlert.station_id
+    );
+    
+    if (!originalAlert) return;
+    
+    // Sanitize and validate coordinates before using them
+    if (originalAlert.latitude && originalAlert.longitude) {
+      const lat = sanitizeNumber(originalAlert.latitude);
+      const lng = sanitizeNumber(originalAlert.longitude);
       
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (lat !== null && lng !== null && 
+          validateLatitude(lat) && validateLongitude(lng)) {
         zoomToLocation(lat, lng, 12);
-        showIncidentDetails(alert);
+        showIncidentDetails(originalAlert);
       }
     }
   };
+
+  // Sanitize alerts data
+  const sanitizedAlerts = alerts.map(alert => ({
+    ...alert,
+    station_id: sanitizeStationId(alert.station_id) || '',
+    station_name: sanitizeText(alert.station_name),
+    state: sanitizeText(alert.state),
+    // Only strip tags and trim for severity levels, do not normalize to 'normal'
+    wl_severity_level: sanitizeText(alert.wl_severity_level || ''),
+    rf_severity_level: sanitizeText(alert.rf_severity_level || ''),
+    clean_water_level: sanitizeText(alert.clean_water_level || ''),
+    trend: sanitizeText(alert.trend || ''),
+    rf1hour: sanitizeText(alert.rf1hour || ''),
+    latitude: alert.latitude ? String(sanitizeNumber(alert.latitude) || '') : '',
+    longitude: alert.longitude ? String(sanitizeNumber(alert.longitude) || '') : '',
+  })).filter(alert => alert.station_id); // Filter out alerts with invalid station IDs
 
   return (
     <>
@@ -93,22 +126,22 @@ export default function WaterRainAlertPanel() {
           animation: slideRight 1s ease-in-out infinite;
         }
       `}</style>
-      <div className={`fixed left-6 top-18 z-41 w-[328px] flex items-center justify-between px-5 py-2 border-b border-gray-700 bg-gray-900/80 shadow transition-all duration-300 ${isRefreshing ? 'bg-blue-900/80' : ''}`}>
+      <div className={`fixed left-6 top-18 z-41 w-[328px] flex items-center justify-between px-5 py-2 border-b border-gray-700 bg-gray-900/80 shadow transition-all duration-300 ${isRefreshing ? 'bg-blue-900/80' : ''} hidden md:flex`}>
         <div className="flex items-center gap-2">
           <FaBell className={`text-lg transition-colors duration-300 ${isRefreshing ? 'text-blue-400 animate-pulse' : 'text-white'}`} />
           <span className="text-white font-bold text-base tracking-wide">Realtime Alerts</span>
         </div>
         <div className="relative">
-          <span className={`-top-2 right-1 text-white text-xs font-bold rounded-full px-2 py-0.5 shadow transition-colors duration-300 ${isRefreshing ? 'bg-blue-600' : 'bg-red-600'}`}>{alerts.length}</span>
+          <span className={`-top-2 right-1 text-white text-xs font-bold rounded-full px-2 py-0.5 shadow transition-colors duration-300 ${isRefreshing ? 'bg-blue-600' : 'bg-red-600'}`}>{sanitizedAlerts.length}</span>
         </div>
       </div>
-      <div className="fixed left-6 top-28 z-40 w-[328px] h-[85vh] overflow-y-auto flex flex-col gap-3 px-3 py-2 pointer-events-auto ">
+      <div className="fixed left-6 top-28 z-40 w-[328px] h-[85vh] overflow-y-auto flex flex-col gap-3 px-3 py-2 pointer-events-auto hidden md:flex">
         {/* Alerts */}
         <div className="flex flex-col gap-3 pb-2">
-          {alerts.length === 0 && (
+          {sanitizedAlerts.length === 0 && (
             <div className="text-gray-300 text-center">No current alerts.</div>
           )}
-          {alerts.map((alert) => (
+          {sanitizedAlerts.map((alert) => (
             <div
               key={alert.station_id}
               className={`alert-card rounded-sm bg-gray-900/60 shadow-lg border-0 overflow-hidden ${getSeverityBorder(alert.wl_severity_level || alert.rf_severity_level)}`}

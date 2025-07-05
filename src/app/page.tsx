@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaMapMarkedAlt, FaShieldAlt, FaChartLine, FaUsers, FaRocket, FaArrowRight } from 'react-icons/fa';
+import { FaMapMarkedAlt, FaShieldAlt, FaChartLine, FaRocket, FaArrowRight } from 'react-icons/fa';
 import { Metadata } from 'next';
 import LottieBackground from '../components/LottieBackground';
+import EmailLink from '@/components/EmailLink';
 
 // Generate metadata for the home page
 export const generateMetadata = (): Metadata => {
@@ -235,21 +236,7 @@ export default function Home() {
           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
             Interested in learning more about our digital initiatives or partnering with MAPIM Strategic Centre?
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
-              href="mailto:salam@mapim.org"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors border border-blue-500"
-            >
-              <FaUsers className="mr-2" />
-              Contact Us
-            </a>
-            <a 
-              href="#"
-              className="inline-flex items-center px-6 py-3 bg-gray-800 text-blue-400 font-semibold rounded-lg border-2 border-blue-500 hover:bg-gray-700 transition-colors"
-            >
-              Learn More
-            </a>
-          </div>
+          <EmailLink />
         </div>
       </section>
 
@@ -275,7 +262,7 @@ export default function Home() {
             <div>
               <h5 className="text-lg font-semibold mb-4 text-white">Contact</h5>
               <div className="text-gray-400 space-y-2">
-                <p>Email: salam@mapim.org</p>
+                <p>Email: s***m@m***m.org</p>
                 <p>Phone: +60 13-3158684</p>
                 <p>Address: Selangor, Malaysia</p>
               </div>
