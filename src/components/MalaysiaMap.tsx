@@ -3,7 +3,7 @@
 import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWater, FaCloudRain, FaExpand, FaCompress, FaRedo } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWater, FaCloudRain, FaExpand, FaCompress, FaRedo, FaHome } from 'react-icons/fa';
 import { useCurrentAlerts } from '@/hooks/useCurrentAlerts';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
 import { useMap } from '@/contexts/MapContext';
@@ -293,6 +293,7 @@ function PPSMarkers() {
 // Map Control Buttons Component
 const MapControls = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { mapRef } = useMap();
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -327,6 +328,30 @@ const MapControls = () => {
     }
   };
 
+  const resetMapView = () => {
+    if (!mapRef.current) return;
+    
+    const map = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+    if (!map) return;
+    
+    // Reset to initial view state
+    map.easeTo({
+      center: [MALAYSIA_CENTER[0], MALAYSIA_CENTER[1]],
+      zoom: 6,
+      duration: 1000, // Smooth animation over 1 second
+      essential: true
+    });
+    
+    // Show a brief visual feedback
+    const button = document.querySelector('[data-reset-button]') as HTMLButtonElement;
+    if (button) {
+      button.classList.add('animate-pulse');
+      setTimeout(() => {
+        button.classList.remove('animate-pulse');
+      }, 1000);
+    }
+  };
+
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-3 hidden md:flex">
       <button
@@ -336,6 +361,14 @@ const MapControls = () => {
         data-refresh-button
       >
         <FaRedo className="w-5 h-5" />
+      </button>
+      <button
+        onClick={resetMapView}
+        className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
+        title="Reset Map View"
+        data-reset-button
+      >
+        <FaHome className="w-5 h-5" />
       </button>
       <button
         onClick={toggleFullscreen}
