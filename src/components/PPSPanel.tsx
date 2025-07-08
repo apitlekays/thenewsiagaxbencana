@@ -76,6 +76,7 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
         if (!Array.isArray(data)) { 
           setPoints([]); 
           setLoading(false); 
+          setError(null); // Clear any previous errors
           return; 
         }
         
@@ -93,10 +94,13 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
         
         setPoints(validPoints);
         setLoading(false);
+        setError(null); // Clear any previous errors
       })
-      .catch(() => {
-        setError('Failed to load PPS data');
+      .catch((error) => {
+        console.error('Error fetching PPS data:', error);
+        setPoints([]);
         setLoading(false);
+        setError('Failed to load PPS data');
       });
   };
 
