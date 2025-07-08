@@ -66,42 +66,44 @@ const PPSPanel = forwardRef<HTMLDivElement>((props, ref) => {
     setExpandedItems(newExpanded);
   };
 
-  const fetchPPSData = () => {
-    fetch('https://n8n.drhafizhanif.net/webhook/detail-pps-data')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch PPS data');
-        return res.json();
-      })
-      .then((data: unknown) => {
-        if (!Array.isArray(data)) { 
-          setPoints([]); 
-          setLoading(false); 
-          setError(null); // Clear any previous errors
-          return; 
-        }
-        
-        // Filter out empty objects and objects without required fields
-        const validPoints = (data as PPSPoint[]).filter(point => {
-          // Check if the object has the required fields and they're not empty
-          return point && 
-                 point.id && 
-                 point.nama && 
-                 point.negeri && 
-                 point.daerah && 
-                 point.mukim &&
-                 Object.keys(point).length > 1; // Ensure it's not just an empty object
-        });
-        
-        setPoints(validPoints);
-        setLoading(false);
-        setError(null); // Clear any previous errors
-      })
-      .catch((error) => {
-        console.error('Error fetching PPS data:', error);
+  const fetchPPSData = async () => {
+    try {
+      const res = await fetch('https://n8n.drhafizhanif.net/webhook/detail-pps-data');
+      if (!res.ok) throw new Error('Failed to fetch PPS data');
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        // Handle empty or invalid JSON
         setPoints([]);
         setLoading(false);
-        setError('Failed to load PPS data');
-      });
+        setError(null); // Not a real error, just no data
+        return;
+      }
+      if (!Array.isArray(data)) { 
+        setPoints([]); 
+        setLoading(false); 
+        setError(null);
+        return; 
+      }
+      const validPoints = (data as PPSPoint[]).filter(point =>
+        point &&
+        point.id &&
+        point.nama &&
+        point.negeri &&
+        point.daerah &&
+        point.mukim &&
+        Object.keys(point).length > 1
+      );
+      setPoints(validPoints);
+      setLoading(false);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching PPS data:', error);
+      setPoints([]);
+      setLoading(false);
+      setError('Failed to load PPS data');
+    }
   };
 
   useEffect(() => {
