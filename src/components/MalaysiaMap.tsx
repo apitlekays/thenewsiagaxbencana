@@ -3,7 +3,7 @@
 import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWater, FaCloudRain, FaExpand, FaCompress, FaRedo, FaHome } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWater, FaCloudRain, FaExpand, FaCompress, FaRedo, FaHome, FaSearch, FaTimes } from 'react-icons/fa';
 import { useCurrentAlerts } from '@/hooks/useCurrentAlerts';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
 import { useMap } from '@/contexts/MapContext';
@@ -293,6 +293,11 @@ function PPSMarkers() {
 // Map Control Buttons Component
 const MapControls = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<{ lat: number; lng: number; name: string } | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const { mapRef } = useMap();
 
   useEffect(() => {
@@ -352,36 +357,200 @@ const MapControls = () => {
     }
   };
 
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      // Clear search when closing
+      setSearchQuery('');
+      setSearchResult(null);
+      setSearchError(null);
+      resetMapView();
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setSearchError(null);
+    
+    try {
+      // Use OpenStreetMap Nominatim API for geocoding
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ', Malaysia')}&limit=1&addressdetails=1`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Search service unavailable');
+      }
+      
+      const data = await response.json();
+      
+      if (!data || data.length === 0) {
+        setSearchError('Location not found. Please try a different search term.');
+        setSearchResult(null);
+        return;
+      }
+      
+      const result = data[0];
+      const lat = parseFloat(result.lat);
+      const lng = parseFloat(result.lon);
+      
+      // Check if location is within Malaysia bounds
+      if (lng < MALAYSIA_BOUNDS[0] || lng > MALAYSIA_BOUNDS[2] || 
+          lat < MALAYSIA_BOUNDS[1] || lat > MALAYSIA_BOUNDS[3]) {
+        setSearchError('Location is outside Malaysia. Please search for a location within Malaysia.');
+        setSearchResult(null);
+        return;
+      }
+      
+      // Set search result
+      const searchResultData = {
+        lat,
+        lng,
+        name: result.display_name.split(',')[0] // Get the first part of the display name
+      };
+      console.log('MapControls: Setting search result:', searchResultData);
+      setSearchResult(searchResultData);
+      
+      // Dispatch event to show marker on map
+      console.log('MapControls: Dispatching search-result event');
+      // Add a small delay to ensure the component is ready to receive the event
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('search-result', { detail: searchResultData }));
+      }, 100);
+      
+      // Zoom to location
+      if (mapRef.current) {
+        const map = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+        if (map) {
+          map.easeTo({
+            center: [lng, lat],
+            zoom: 12,
+            duration: 1500,
+            essential: true
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchError('Search failed. Please try again.');
+      setSearchResult(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchResult(null);
+    setSearchError(null);
+    window.dispatchEvent(new CustomEvent('clear-search'));
+    resetMapView();
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-3 hidden md:flex">
-      <button
-        onClick={refreshPage}
-        className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
-        title="Refresh Data"
-        data-refresh-button
-      >
-        <FaRedo className="w-5 h-5" />
-      </button>
-      <button
-        onClick={resetMapView}
-        className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
-        title="Reset Map View"
-        data-reset-button
-      >
-        <FaHome className="w-5 h-5" />
-      </button>
-      <button
-        onClick={toggleFullscreen}
-        className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
-        title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-      >
-        {isFullscreen ? (
-          <FaCompress className="w-5 h-5" />
-        ) : (
-          <FaExpand className="w-5 h-5" />
-        )}
-      </button>
-    </div>
+    <>
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-3 hidden md:flex">
+        <button
+          onClick={refreshPage}
+          className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
+          title="Refresh Data"
+          data-refresh-button
+        >
+          <FaRedo className="w-5 h-5" />
+        </button>
+        <button
+          onClick={resetMapView}
+          className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
+          title="Reset Map View"
+          data-reset-button
+        >
+          <FaHome className="w-5 h-5" />
+        </button>
+        <button
+          onClick={toggleSearch}
+          className={`bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl ${showSearch ? 'bg-blue-100 text-blue-700' : ''}`}
+          title="Search Location"
+        >
+          <FaSearch className="w-5 h-5" />
+        </button>
+        <button
+          onClick={toggleFullscreen}
+          className="bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white transition-colors rounded-full p-3 shadow-lg border border-gray-200 hover:shadow-xl"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+        >
+          {isFullscreen ? (
+            <FaCompress className="w-5 h-5" />
+          ) : (
+            <FaExpand className="w-5 h-5" />
+          )}
+        </button>
+      </div>
+
+      {/* Search Input */}
+      {showSearch && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white/95 backdrop-blur-sm rounded-sm shadow-xl border border-gray-200 p-2 hidden md:block min-w-[400px]">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Search for a location in Malaysia..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isSearching}
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+            <button
+              onClick={toggleSearch}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <FaTimes className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Error Message */}
+          {searchError && (
+            <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-md">
+              <p className="text-red-700 text-sm">{searchError}</p>
+            </div>
+          )}
+          
+          {/* Search Result */}
+          {searchResult && (
+            <div className="mt-3 p-3 bg-green-100 border border-green-300 rounded-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-800 font-medium">{searchResult.name}</p>
+                  <p className="text-green-600 text-sm">Location found and marked on map</p>
+                </div>
+                <button
+                  onClick={clearSearch}
+                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 };
 
@@ -416,6 +585,47 @@ const CopyrightFooter = () => {
         </a>
       </div>
     </div>
+  );
+};
+
+// Search Result Marker Component
+const SearchResultMarker = () => {
+  const [searchResult, setSearchResult] = useState<{ lat: number; lng: number; name: string } | null>(null);
+
+  useEffect(() => {
+    const handleSearchResult = (event: CustomEvent) => {
+      setSearchResult(event.detail);
+    };
+    const handleClearSearch = () => {
+      setSearchResult(null);
+    };
+    window.addEventListener('search-result', handleSearchResult as EventListener);
+    window.addEventListener('clear-search', handleClearSearch);
+    return () => {
+      window.removeEventListener('search-result', handleSearchResult as EventListener);
+      window.removeEventListener('clear-search', handleClearSearch);
+    };
+  }, []);
+
+  if (!searchResult) return null;
+
+  return (
+    <Marker
+      longitude={searchResult.lng}
+      latitude={searchResult.lat}
+      anchor="bottom"
+    >
+      <div className="relative z-[9999] flex flex-col items-center">
+        {/* Pulsing ring */}
+        <span className="absolute w-10 h-10 rounded-full border-4 border-blue-300 animate-ping z-[9998]" />
+        {/* Solid marker */}
+        <span className="block w-6 h-6 bg-blue-600 border-2 border-white rounded-full shadow-lg z-[9999]" />
+        {/* Label */}
+        <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 px-3 py-1 bg-white text-blue-900 font-semibold rounded shadow border border-blue-200 whitespace-nowrap z-[10000]">
+          {searchResult.name}
+        </span>
+      </div>
+    </Marker>
   );
 };
 
@@ -495,6 +705,7 @@ export default function MalaysiaMap() {
       >
         <AlertMarkers />
         <PPSMarkers />
+        <SearchResultMarker />
       </Map>
       <MapControls />
       <CopyrightFooter />
