@@ -519,6 +519,17 @@ const MapControls = ({ pinnedLocations, pinCurrentSearch, deletePin, deleteAllPi
     setIsDragging(true);
   };
 
+  // 1. Add touch drag functionality in MapControls
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    });
+    setIsDragging(true);
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -550,6 +561,10 @@ const MapControls = ({ pinnedLocations, pinCurrentSearch, deletePin, deleteAllPi
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, dragOffset]);
+
+  // 2. Add onTouchStart to the drag handle
+  // ...
+  // <div ... onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} ...>
 
   // 3. When showSearch is set to true, center the panel
   useEffect(() => {
@@ -615,6 +630,7 @@ const MapControls = ({ pinnedLocations, pinCurrentSearch, deletePin, deleteAllPi
           <div
             className="absolute left-0 top-0 bottom-0 w-3 flex items-center justify-center cursor-grab select-none"
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
             style={{ zIndex: 2 }}
           >
             <div className="relative h-12 w-full flex items-center justify-center">
