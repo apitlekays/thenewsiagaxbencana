@@ -522,7 +522,7 @@ const MapControls = ({ pinnedLocations, pinCurrentSearch, deletePin, deleteAllPi
   // 1. Add touch drag functionality in MapControls
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDragOffset({
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top
@@ -628,7 +628,7 @@ const MapControls = ({ pinnedLocations, pinCurrentSearch, deletePin, deleteAllPi
         >
           {/* Drag Handle - Left Side, improved grouping and centering */}
           <div
-            className="absolute left-0 top-0 bottom-0 w-3 flex items-center justify-center cursor-grab select-none"
+            className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab select-none"
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             style={{ zIndex: 2 }}
