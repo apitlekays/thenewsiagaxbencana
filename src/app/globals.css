@@ -101,14 +101,24 @@ html, body, #__next {
   }
 }
 
+/* MAPIM HQ levitating animation */
+@keyframes levitate {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 .custom-alert-marker {
   background: transparent !important;
   border: none !important;
-  z-index: 9999 !important;
+  z-index: 9997 !important;
 }
 
 .custom-alert-marker div {
-  z-index: 9999 !important;
+  z-index: 9997 !important;
 }
 
 /* Custom Scrollbar Styling */
