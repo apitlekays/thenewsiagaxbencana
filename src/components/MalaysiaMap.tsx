@@ -9,6 +9,7 @@ import { getSeverityBadge } from '../utils/getSeverityBadge';
 import { useMap } from '@/contexts/MapContext';
 import type { Alert } from '@/contexts/MapContext';
 import { getAppVersion } from '@/utils/version';
+import Image from 'next/image';
 
 const MALAYSIA_BOUNDS: [number, number, number, number] = [90, -9, 130, 15]; // [west, south, east, north] - covers ASEAN countries
 const MALAYSIA_CENTER = [103.5, 4.5]; // [lng, lat] - centered on Peninsular Malaysia
@@ -212,7 +213,7 @@ function AlertMarkers() {
                 width: 15, 
                 height: 15, 
                 position: 'relative', 
-                zIndex: 9999, 
+                zIndex: 9998, 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
@@ -228,7 +229,7 @@ function AlertMarkers() {
                     borderRadius: '50%', 
                     border: '2px solid white',
                     animation: 'pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
-                    zIndex: 9998
+                    zIndex: 9997
                   }} 
                 />
               )}
@@ -1130,11 +1131,11 @@ const SearchResultMarker = ({ mapZoom }: { mapZoom: number }) => {
       latitude={searchResult.lat}
       anchor="bottom"
     >
-      <div className="relative z-[9999] flex flex-col items-center">
+      <div className="relative z-[9997] flex flex-col items-center">
         {/* Pulsing ring */}
-        <span className="absolute w-10 h-10 rounded-full border-4 border-blue-300 animate-ping z-[9998]" />
+        <span className="absolute w-10 h-10 rounded-full border-4 border-blue-300 animate-ping z-[9996]" />
         {/* Solid marker */}
-        <span className="block w-6 h-6 bg-blue-600 border-2 border-white rounded-full shadow-lg z-[9999]" />
+        <span className="block w-6 h-6 bg-blue-600 border-2 border-white rounded-full shadow-lg z-[9997]" />
         {/* Label - responsive to zoom level */}
         <span 
           className={`absolute left-1/2 top-full mt-2 -translate-x-1/2 px-3 py-1 bg-white text-blue-900 font-semibold rounded shadow border border-blue-200 whitespace-nowrap z-[10000] transition-all duration-300 ease-in-out ${
@@ -1151,6 +1152,62 @@ const SearchResultMarker = ({ mapZoom }: { mapZoom: number }) => {
         </span>
       </div>
     </Marker>
+  );
+};
+
+// MAPIM HQ Marker Component
+const MAPIMHQMarker = ({ coordinates }: { coordinates: Array<{ latitude: number; longitude: number; name: string }> }) => {
+  return (
+    <>
+      {coordinates.map((coord, index) => (
+        <Marker
+          key={`mapim-${index}`}
+          longitude={coord.longitude}
+          latitude={coord.latitude}
+          anchor="bottom"
+        >
+          <div className="relative z-[9999]" style={{ width: '32px', height: '40px' }}>
+            {/* Pulsing fluorescent green dot */}
+            <div 
+              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full animate-ping"
+              style={{ 
+                backgroundColor: '#39ff14',
+                boxShadow: '0 0 10px #39ff14, 0 0 20px #39ff14',
+                zIndex: 9999 
+              }}
+            />
+            {/* Solid fluorescent green dot */}
+            <div 
+              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full"
+              style={{ 
+                backgroundColor: '#39ff14',
+                boxShadow: '0 0 5px #39ff14',
+                zIndex: 9999 
+              }}
+            />
+            {/* MAPIM HQ GIF marker with levitating animation */}
+            {
+              //if name is not MAPIM Central Warehouse, then show the GIF
+              coord.name !== 'MAPIM Central Warehouse' && (
+                <Image 
+                  src="/mapim-location.gif" 
+                  alt="MAPIM HQ" 
+                  width={32}
+                  height={32}
+                  className="absolute rounded-full shadow-lg"
+                  style={{ 
+                    zIndex: 99999,
+                    bottom: '8px',
+                    transform: 'translateX(-50%)',
+                    animation: 'levitate 2s ease-in-out infinite'
+                  }}
+                />
+              )
+            }
+          </div>
+        </Marker>
+      ))}
+    </>
   );
 };
 
@@ -1382,6 +1439,13 @@ export default function MalaysiaMap() {
         <AlertMarkers />
         <PPSMarkers />
         <SearchResultMarker mapZoom={mapZoom} />
+        <MAPIMHQMarker coordinates={[
+          { latitude: 2.8828815, longitude: 101.7936722, name: 'MAPIM HQ' },
+          { latitude: 3.1119137, longitude: 101.5169861, name: 'MAPIM President Office' },
+          { latitude: 2.840720, longitude: 101.691235, name: 'MAPIM Central Warehouse' },
+          { latitude: 4.616539, longitude: 101.0495603, name: 'MAPIM Perak' },
+          { latitude: 5.64762, longitude: 100.4785438, name: 'MAPIM Kedah' },
+        ]} />
         {pinnedLocations.map((pin, idx) => (
           <Marker
             key={`pin-${idx}`}
@@ -1389,15 +1453,15 @@ export default function MalaysiaMap() {
             latitude={pin.lat}
             anchor="bottom"
           >
-            <div className="relative z-[9999] flex flex-col items-center">
+            <div className="relative z-[9997] flex flex-col items-center">
               {/* Pulsing ring */}
               <span 
-                className="absolute w-8 h-8 rounded-full border-4 border-purple-300 animate-ping z-[9998]" 
+                className="absolute w-8 h-8 rounded-full border-4 border-purple-300 animate-ping z-[9996]" 
                 style={{ borderColor: pin.color, background: pin.color + '22' }} 
               />
               {/* Solid marker */}
               <span 
-                className="block w-5 h-5 border-2 border-white rounded-full shadow-lg z-[9999]" 
+                className="block w-5 h-5 border-2 border-white rounded-full shadow-lg z-[9997]" 
                 style={{ background: pin.color }} 
               />
               {/* Location label - responsive to zoom level */}
