@@ -111,7 +111,7 @@ export default function IncidentDetailsPanel({ alert, isVisible, onClose, }: Inc
         })
         .catch(() => setRainFetched(null)),
     ]).finally(() => setLoading(false));
-  }, [alert?.station_id, isVisible]);
+  }, [alert?.station_id, isVisible, alert]);
 
   if (!alert) return null;
 

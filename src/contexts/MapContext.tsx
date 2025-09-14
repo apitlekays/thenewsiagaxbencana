@@ -18,6 +18,37 @@ export interface Alert {
   longitude?: string;
 }
 
+export interface Vessel {
+  id: number;
+  status: string;
+  user_created: string;
+  date_created: string;
+  user_updated: string;
+  date_updated: string;
+  name: string;
+  mmsi: string;
+  start_date: string;
+  positions: Array<{
+    latitude: number;
+    longitude: number;
+    timestamp_utc: string;
+  }>;
+  datalastic_positions: string | null;
+  marinetraffic_positions: string | null;
+  positions_sources: string[];
+  update_sources: string[];
+  marinetraffic_shipid: string | null;
+  latitude: string;
+  longitude: string;
+  timestamp: string;
+  image: string | null;
+  vessel_status: string;
+  icao: string | null;
+  aircraft_registration: string | null;
+  devices: number[];
+  firstDataTime?: Date; // Optional property for preparation vessels
+}
+
 interface MapContextType {
   mapRef: React.MutableRefObject<MapRef | null>;
   mapLoaded: boolean;
@@ -28,6 +59,14 @@ interface MapContextType {
   isIncidentPanelVisible: boolean;
   showIncidentDetails: (alert: Alert) => void;
   hideIncidentDetails: () => void;
+  // Vessel tracking properties
+  currentVessel: Vessel | null;
+  isVesselPanelVisible: boolean;
+  showVesselDetails: (vessel: Vessel) => void;
+  hideVesselDetails: () => void;
+  // Timeline properties
+  currentTime: Date | null;
+  setCurrentTime: (time: Date | null) => void;
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
@@ -41,6 +80,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [currentAlert, setCurrentAlert] = useState<Alert | null>(null);
   const [isIncidentPanelVisible, setIsIncidentPanelVisible] = useState(false);
+  const [currentVessel, setCurrentVessel] = useState<Vessel | null>(null);
+  const [isVesselPanelVisible, setIsVesselPanelVisible] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
   const zoomToLocation = (lat: number, lng: number, zoom: number = 12) => {
     if (mapRef.current && mapLoaded) {
@@ -83,6 +125,24 @@ export function MapProvider({ children }: { children: ReactNode }) {
     resetToDefault();
   };
 
+  const showVesselDetails = (vessel: Vessel) => {
+    setCurrentVessel(vessel);
+    setIsVesselPanelVisible(true);
+    
+    // Dispatch vessel selection event
+    window.dispatchEvent(new CustomEvent('vessel-select', {
+      detail: { vesselId: vessel.id }
+    }));
+  };
+
+  const hideVesselDetails = () => {
+    setIsVesselPanelVisible(false);
+    setCurrentVessel(null);
+    
+    // Dispatch vessel deselection event
+    window.dispatchEvent(new CustomEvent('vessel-deselect'));
+  };
+
   return (
     <MapContext.Provider value={{ 
       mapRef, 
@@ -93,7 +153,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
       currentAlert, 
       isIncidentPanelVisible, 
       showIncidentDetails, 
-      hideIncidentDetails 
+      hideIncidentDetails,
+      currentVessel,
+      isVesselPanelVisible,
+      showVesselDetails,
+      hideVesselDetails,
+      currentTime,
+      setCurrentTime
     }}>
       {children}
     </MapContext.Provider>

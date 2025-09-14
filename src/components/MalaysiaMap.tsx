@@ -1194,6 +1194,7 @@ const MAPIMHQMarker = ({ coordinates }: { coordinates: Array<{ latitude: number;
                   alt="MAPIM HQ" 
                   width={32}
                   height={32}
+                  unoptimized={true}
                   className="absolute rounded-full shadow-lg"
                   style={{ 
                     zIndex: 99999,

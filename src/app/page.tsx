@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaMapMarkedAlt, FaShieldAlt, FaChartLine, FaRocket, FaArrowRight } from 'react-icons/fa';
+import { FaMapMarkedAlt, FaShieldAlt, FaChartLine, FaRocket, FaArrowRight, FaShip } from 'react-icons/fa';
 import { Metadata } from 'next';
 import LottieBackground from '../components/LottieBackground';
 import EmailLink from '@/components/EmailLink';
@@ -41,6 +41,15 @@ export default function Home() {
       icon: FaMapMarkedAlt,
       color: 'bg-red-500',
       href: '/bencana',
+      status: 'Live'
+    },
+    {
+      id: 'siagax-flotilla',
+      title: 'SiagaX Sumud Nusantara',
+      description: 'Digital vessel tracking and management system for the humanitarian mission by sea',
+      icon: FaShip,
+      color: 'bg-purple-500',
+      href: '/sumudnusantara',
       status: 'Live'
     },
     {
