@@ -6,23 +6,26 @@ import {
   FaMapMarkerAlt, 
   FaTachometerAlt, 
   FaCalendarAlt,
-  FaTimes
+  FaTimes,
+  FaFlag,
+  FaExternalLinkAlt,
+  FaImage
 } from 'react-icons/fa';
-import { useVesselDetails, calculateVesselStats } from '@/hooks/useVesselDetails';
+import { calculateVesselStats } from '@/hooks/useVesselDetails';
 import { VesselDetailsPanelProps } from '@/types/vessel';
 import { 
   getVesselStatusIcon, 
   getVesselStatusDisplay 
 } from '@/utils/vesselStatus';
 import { VesselStatus } from '@/types/vessel';
+import { getVesselOrigin } from '@/utils/vesselOrigin';
+import Image from 'next/image';
 
 export default function EnhancedVesselDetailsPanel({ vessel, isVisible, onClose }: VesselDetailsPanelProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'movement' | 'details' | 'mission'>('overview');
 
-  // Always call hooks at the top level, regardless of visibility
-  // Use empty string as fallback for vessels without MMSI
-  const vesselMmsi = vessel?.mmsi || '';
-  useVesselDetails(vesselMmsi);
+  // Note: useVesselDetails hook removed as calculateVesselStats now uses vessel data directly from props
+  // The vessel object already contains all GSF API fields (speed_kmh, speed_knots, course, etc.)
 
   // Calculate vessel statistics - only when vessel exists
   const stats = useMemo(() => {
@@ -81,6 +84,33 @@ export default function EnhancedVesselDetailsPanel({ vessel, isVisible, onClose 
     return <StatusIconComponent className="w-3 h-3" />;
   };
 
+  // Helper functions for new features
+  const getCountryFlag = (origin: string) => {
+    const countryFlags: Record<string, string> = {
+      'Spain': '🇪🇸',
+      'Italy': '🇮🇹', 
+      'Tunisia': '🇹🇳',
+      'Greece': '🇬🇷'
+    };
+    return countryFlags[origin] || '🏴';
+  };
+
+  const getCourseDirection = (course: number) => {
+    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const index = Math.round(course / 22.5) % 16;
+    return directions[index];
+  };
+
+  const formatSpeed = (speed: number | null | undefined, unit: 'kmh' | 'knots') => {
+    if (speed === null || speed === undefined) return 'N/A';
+    return `${speed.toFixed(1)} ${unit === 'kmh' ? 'km/h' : 'knots'}`;
+  };
+
+  const formatCourse = (course: number | null | undefined) => {
+    if (course === null || course === undefined) return 'N/A';
+    return `${course.toFixed(0)}° ${getCourseDirection(course)}`;
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: <FaMapMarkerAlt className="w-3 h-3" /> },
     { id: 'movement', label: 'Movement', icon: <FaTachometerAlt className="w-3 h-3" /> },
@@ -91,7 +121,7 @@ export default function EnhancedVesselDetailsPanel({ vessel, isVisible, onClose 
   return (
     <>
       {/* Desktop Version */}
-      <div className="hidden md:block w-96 bg-gray-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-700 max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="hidden md:flex w-96 bg-gray-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-700 max-h-[70vh] overflow-hidden flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-700 bg-gray-800/50">
           <div className="flex items-center justify-between mb-3">
@@ -165,6 +195,67 @@ export default function EnhancedVesselDetailsPanel({ vessel, isVisible, onClose 
                   </div>
                 </div>
               )}
+
+              {/* Vessel Image */}
+              <div className="bg-purple-900/20 rounded-lg p-3 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <FaImage className="w-4 h-4 text-purple-400" />
+                  <span className="text-purple-300 text-sm font-medium">Vessel Image</span>
+                </div>
+                <div className="flex justify-center">
+                  <div className="relative w-32 h-24 rounded-lg overflow-hidden border border-purple-500/30">
+                    <Image
+                      src={vessel.image_url || '/vessels/no-photo.png'}
+                      alt={vessel.name}
+                      fill
+                      sizes="128px"
+                      className="object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/vessels/no-photo.png';
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Origin Information */}
+              {vessel.origin && (
+                <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaFlag className="w-4 h-4 text-yellow-400" />
+                    <span className="text-yellow-300 text-sm font-medium">Sailing Origin</span>
+                  </div>
+                  <div className="text-sm text-yellow-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{getCountryFlag(getVesselOrigin(vessel))}</span>
+                      <span>{getVesselOrigin(vessel)}</span>
+                    </div>
+                    <div className="text-yellow-300 mt-1 text-xs">
+                      Port: {vessel.origin}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Current Speed & Course */}
+              <div className="bg-orange-900/20 rounded-lg p-3 border border-orange-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <FaTachometerAlt className="w-4 h-4 text-orange-400" />
+                  <span className="text-orange-300 text-sm font-medium">Current Navigation</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-orange-400">Speed:</span>
+                    <div className="text-orange-100">{formatSpeed(vessel.speed_kmh, 'kmh')}</div>
+                    <div className="text-orange-300 text-xs">{formatSpeed(vessel.speed_knots, 'knots')}</div>
+                  </div>
+                  <div>
+                    <span className="text-orange-400">Course:</span>
+                    <div className="text-orange-100">{formatCourse(vessel.course)}</div>
+                  </div>
+                </div>
+              </div>
 
               {/* Vessel Statistics */}
               {stats && (
@@ -245,8 +336,41 @@ export default function EnhancedVesselDetailsPanel({ vessel, isVisible, onClose 
                     <span className="text-purple-400">Start Date:</span>
                     <span className="text-purple-100">{vessel.start_date}</span>
                   </div>
+                  {vessel.type && (
+                    <div className="flex justify-between">
+                      <span className="text-purple-400">Type:</span>
+                      <span className="text-purple-100">{vessel.type}</span>
+                    </div>
+                  )}
+                  {vessel.origin && (
+                    <div className="flex justify-between">
+                      <span className="text-purple-400">Origin:</span>
+                      <span className="text-purple-100">{getVesselOrigin(vessel)} ({vessel.origin})</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* MarineTraffic Link */}
+              {vessel.marinetraffic_shipid && (
+                <div className="bg-blue-900/20 rounded-lg p-3 border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaExternalLinkAlt className="w-4 h-4 text-blue-400" />
+                    <span className="text-blue-300 text-sm font-medium">External Tracking</span>
+                  </div>
+                  <div className="text-sm">
+                    <a
+                      href={`https://www.marinetraffic.com/en/ais/details/ships/${vessel.marinetraffic_shipid}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-200 hover:text-blue-100 underline flex items-center gap-1"
+                    >
+                      <FaExternalLinkAlt className="w-3 h-3" />
+                      View on MarineTraffic
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -2,6 +2,7 @@
 
 import { FaTimes, FaShip, FaMapMarkedAlt, FaClock, FaUsers, FaGlobe, FaQuestionCircle } from 'react-icons/fa';
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface AboutMissionModalProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export default function AboutMissionModal({ isOpen, onClose }: AboutMissionModal
         
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="space-y-6">
+          <div className="space-y-6 mb-6">
             {/* Mission Overview */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Global Sumud Flotilla Mission</h3>
@@ -98,7 +99,7 @@ export default function AboutMissionModal({ isOpen, onClose }: AboutMissionModal
                   <FaMapMarkedAlt className="w-5 h-5 text-blue-600 mr-3 mt-1 flex-shrink-0" />
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-1">Real-time Tracking</h4>
-                    <p className="text-gray-600 text-sm">Monitor vessel positions and routes with live updates every 10 minutes</p>
+                    <p className="text-gray-600 text-sm">Monitor vessel positions and routes with live updates every 15 minutes</p>
                   </div>
                 </div>
                 
@@ -174,6 +175,35 @@ export default function AboutMissionModal({ isOpen, onClose }: AboutMissionModal
                   Advocate for peaceful resolution and humanitarian access
                 </li>
               </ul>
+            </div>
+
+            {/* Data Credits */}
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Credits</h3>
+              <div className="flex items-center justify-center">
+                <div className="text-center">
+                  <div className="mb-3">
+                    <Image 
+                      src="/forensic-architecture-logo.svg" 
+                      alt="Forensic Architecture" 
+                      width={90}
+                      height={37}
+                      className="h-8 mx-auto"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Vessel tracking data provided by{' '}
+                    <a 
+                      href="https://forensic-architecture.org" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline font-medium"
+                    >
+                      Forensic Architecture
+                    </a>
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           

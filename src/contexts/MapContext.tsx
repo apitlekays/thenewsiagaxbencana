@@ -32,6 +32,9 @@ export interface Vessel {
     latitude: number;
     longitude: number;
     timestamp_utc: string;
+    course?: number | null;
+    speed_kmh?: number | null;
+    speed_knots?: number | null;
   }>;
   datalastic_positions: string | null;
   marinetraffic_positions: string | null;
@@ -46,7 +49,15 @@ export interface Vessel {
   icao: string | null;
   aircraft_registration: string | null;
   devices: number[];
+  origin?: string; // Port of origin from GSF API
   firstDataTime?: Date; // Optional property for preparation vessels
+  isSpawning?: boolean; // Flag to trigger spawn animation
+  // New GSF API fields
+  speed_kmh?: number | null; // Current speed in km/h
+  speed_knots?: number | null; // Current speed in knots
+  course?: number | null; // Current heading/bearing
+  type?: string | null; // Vessel type
+  image_url?: string | null; // Vessel image URL
 }
 
 interface MapContextType {

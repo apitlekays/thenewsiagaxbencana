@@ -40,3 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .cursor/.mcp.json
+scripts/set-version.js

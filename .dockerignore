@@ -12,12 +12,12 @@ out
 build
 dist
 
-# Environment variables
+# Environment variables (exclude local/dev files but allow production)
 .env
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local
+# .env.production.local  # Allow production env files
 
 # IDE and editor files
 .vscode
@@ -107,4 +107,4 @@ jspm_packages/
 .dynamodb/
 
 # TernJS port file
-.tern-port 
+.tern-port

@@ -35,19 +35,19 @@ export function useVesselDetails(mmsi: string) {
     setError(null);
 
     try {
-      // Fetch vessel data from siagax.com API
-      console.log('Fetching vessel data from siagax.com API...');
-      const siagaxResponse = await fetch('https://flotillatracker.siagax.com/webhook/tracker', {
+      // Fetch vessel data from our new GSF API endpoint
+      console.log('Fetching vessel data from GSF API...');
+      const gsfResponse = await fetch('/api/vessels', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(15000), // 15 second timeout
       });
       
-      if (siagaxResponse.ok) {
-        const siagaxData = await siagaxResponse.json();
-        const vessels = Array.isArray(siagaxData) && siagaxData.length > 0 ? siagaxData[0].vessels : siagaxData.vessels || siagaxData;
+      if (gsfResponse.ok) {
+        const vessels = await gsfResponse.json();
         
         if (Array.isArray(vessels)) {
           const vessel = vessels.find((v: { mmsi: string; name: string }) => v.mmsi === mmsiToFetch);
@@ -55,8 +55,17 @@ export function useVesselDetails(mmsi: string) {
             const extractedData: VesselDetailsData = {
               mmsi: vessel.mmsi,
               name: vessel.name,
-              // Only include fields that are actually available from the siagax.com API
-              // Based on the Vessel interface from MapContext
+              // Include all available fields from GSF API
+              origin: vessel.origin || null,
+              speed_kmh: vessel.speed_kmh || null,
+              speed_knots: vessel.speed_knots || null,
+              course: vessel.course || null,
+              type: vessel.type || null,
+              image_url: vessel.image_url || null,
+              marinetraffic_shipid: vessel.marinetraffic_shipid || null,
+              positions: vessel.positions || [],
+              timestamp: vessel.timestamp || null,
+              vessel_status: vessel.vessel_status || null,
             };
             
             // Cache the data
@@ -70,7 +79,7 @@ export function useVesselDetails(mmsi: string) {
         }
       }
       
-      // If siagax.com API doesn't have the vessel, set to null
+      // If GSF API doesn't have the vessel, set to null
       setError('Vessel data unavailable');
       setVesselData(null);
       
@@ -91,7 +100,12 @@ export function useVesselDetails(mmsi: string) {
 }
 
 // Utility function to calculate vessel statistics
-export function calculateVesselStats(vessel: { positions?: Array<{ latitude: number; longitude: number; timestamp_utc: string }> }): {
+export function calculateVesselStats(vessel: { 
+  positions?: Array<{ latitude: number; longitude: number; timestamp_utc: string }>;
+  speed_kmh?: number | null | undefined;
+  speed_knots?: number | null | undefined;
+  course?: number | null | undefined;
+}): {
   totalPositions: number;
   distanceTraveled: number;
   averageSpeed: number;
@@ -105,8 +119,8 @@ export function calculateVesselStats(vessel: { positions?: Array<{ latitude: num
       totalPositions: vessel.positions?.length || 0,
       distanceTraveled: 0,
       averageSpeed: 0,
-      currentSpeed: 0,
-      currentCourse: 0,
+      currentSpeed: vessel.speed_kmh ? vessel.speed_kmh * 0.539957 : 0, // Convert km/h to knots
+      currentCourse: vessel.course || 0,
       timeAtSea: 0,
       estimatedTimeToGaza: 0,
     };
@@ -135,10 +149,15 @@ export function calculateVesselStats(vessel: { positions?: Array<{ latitude: num
   // Calculate average speed
   const averageSpeed = timeAtSea > 0 ? totalDistance / timeAtSea : 0;
 
-  // Get current speed and course (from last two positions)
+  // Get current speed and course - prefer GSF API data if available
   let currentSpeed = 0;
   let currentCourse = 0;
-  if (positions.length >= 2) {
+  
+  if (vessel.speed_kmh !== null && vessel.speed_kmh !== undefined) {
+    // Use GSF API speed data (convert km/h to knots)
+    currentSpeed = vessel.speed_kmh * 0.539957;
+  } else if (positions.length >= 2) {
+    // Fallback to calculated speed from positions
     const last = positions[positions.length - 1];
     const secondLast = positions[positions.length - 2];
     
@@ -151,6 +170,15 @@ export function calculateVesselStats(vessel: { positions?: Array<{ latitude: num
                      new Date(secondLast.timestamp_utc).getTime()) / (1000 * 60 * 60);
     
     currentSpeed = timeDiff > 0 ? distance / timeDiff : 0;
+  }
+  
+  if (vessel.course !== null && vessel.course !== undefined) {
+    // Use GSF API course data
+    currentCourse = vessel.course;
+  } else if (positions.length >= 2) {
+    // Fallback to calculated course from positions
+    const last = positions[positions.length - 1];
+    const secondLast = positions[positions.length - 2];
     currentCourse = calculateBearing(
       secondLast.latitude, secondLast.longitude,
       last.latitude, last.longitude

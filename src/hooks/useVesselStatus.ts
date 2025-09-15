@@ -8,7 +8,7 @@ const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache
 
 export function useVesselStatus() {
   const [vesselStatuses, setVesselStatuses] = useState<Map<string, VesselStatus>>(new Map());
-  const [isLoading, setIsLoading] = useState(true); // Start as loading
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -147,6 +147,7 @@ export function useVesselStatus() {
     const cacheKey = 'vessel_statuses';
     const cachedData = statusCache.get(cacheKey);
     
+    // Always provide fallback status immediately - don't wait for webhook
     if (!cachedData || cachedData.length === 0) {
       return 'sailing'; // Default to 'sailing' if no webhook data
     }

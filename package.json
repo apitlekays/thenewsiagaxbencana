@@ -1,16 +1,20 @@
 {
   "name": "mapim-strategic-centre",
-  "version": "1.0.26",
+  "version": "1.0.32",
   "private": true,
   "scripts": {
-    "dev": "node scripts/set-version.js && next dev",
-    "build": "node scripts/set-version.js && next build",
+    "dev": "next dev",
+    "build": "npm run set-version && next build",
     "start": "next start",
     "lint": "next lint",
-    "set-version": "node scripts/set-version.js"
+    "set-version": "node scripts/set-version.js",
+    "vercel-build": "npm run build",
+    "docker:build": "docker-compose --profile prod build",
+    "docker:up": "docker-compose --profile prod up -d"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.14.2",
+    "@supabase/supabase-js": "^2.57.4",
     "@types/leaflet": "^1.9.19",
     "flipclock": "^1.0.1",
     "leaflet": "^1.9.4",

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaShip, FaTimes, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
+import { FaShip, FaTimes, FaMapMarkerAlt, FaClock, FaFlag } from 'react-icons/fa';
 import { Vessel } from '@/contexts/MapContext';
 import { 
   getVesselStatusDisplay 
 } from '@/utils/vesselStatus';
+import { getVesselOrigin, getVesselMarkerColorClass } from '@/utils/vesselOrigin';
 import { VesselStatus } from '@/types/vessel';
 
 interface VesselListBottomSheetProps {
@@ -93,6 +94,26 @@ export default function VesselListBottomSheet({
     return closestPosition;
   };
 
+  const getVesselOriginInfo = (vessel: Vessel) => {
+    const origin = getVesselOrigin(vessel);
+    const colorClass = getVesselMarkerColorClass(vessel);
+    
+    // Get flag emoji for each country
+    const flagEmoji = {
+      Spain: '🇪🇸',
+      Italy: '🇮🇹',
+      Tunisia: '🇹🇳',
+      Greece: '🇬🇷',
+      Unknown: '❓'
+    };
+    
+    return {
+      origin,
+      colorClass,
+      flagEmoji: flagEmoji[origin]
+    };
+  };
+
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setDragStartY(e.touches[0].clientY);
@@ -161,6 +182,7 @@ export default function VesselListBottomSheet({
             {vessels.map((vessel) => {
               const status = getVesselStatus(vessel);
               const position = getCurrentPosition(vessel);
+              const originInfo = getVesselOriginInfo(vessel);
               
               return (
                 <div
@@ -170,12 +192,25 @@ export default function VesselListBottomSheet({
                 >
                   {/* Vessel Name and Status */}
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-white text-sm truncate flex-1 mr-2">
-                      {vessel.name || `Vessel ${vessel.mmsi}`}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <h3 className="font-medium text-white text-sm truncate">
+                        {vessel.name || `Vessel ${vessel.mmsi}`}
+                      </h3>
+                      {/* Origin indicator */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="text-sm">{originInfo.flagEmoji}</span>
+                        <div className={`w-2 h-2 rounded-full ${originInfo.colorClass}`}></div>
+                      </div>
+                    </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color} text-white flex-shrink-0`}>
                       {status.text}
                     </span>
+                  </div>
+
+                  {/* Origin Country - Compact for mobile */}
+                  <div className="flex items-center gap-1 mb-2 text-xs text-gray-400">
+                    <FaFlag className="w-3 h-3" />
+                    <span>From: <span className="text-gray-300 font-medium">{originInfo.origin}</span></span>
                   </div>
 
                   {/* Vessel Details - Compact for mobile */}

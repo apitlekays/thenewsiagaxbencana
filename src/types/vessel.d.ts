@@ -4,13 +4,25 @@ export interface VesselPosition {
   latitude: number;
   longitude: number;
   timestamp_utc: string;
+  course?: number | null;
+  speed_kmh?: number | null;
+  speed_knots?: number | null;
 }
 
 export interface VesselDetailsData {
   mmsi: string;
   name: string;
-  // Only include fields that are actually available from siagax.com API
-  // Based on the Vessel interface from MapContext
+  // Enhanced fields from GSF API
+  origin?: string | null;
+  speed_kmh?: number | null;
+  speed_knots?: number | null;
+  course?: number | null;
+  type?: string | null;
+  image_url?: string | null;
+  marinetraffic_shipid?: string | null;
+  positions?: Array<{ latitude: number; longitude: number; timestamp_utc: string }>;
+  timestamp?: string | null;
+  vessel_status?: string | null;
 }
 
 export interface EnhancedVessel {
@@ -39,6 +51,14 @@ export interface EnhancedVessel {
   aircraft_registration: string | null;
   devices: number[];
   firstDataTime?: Date;
+  
+  // New GSF API fields
+  origin?: string | null;
+  speed_kmh?: number | null;
+  speed_knots?: number | null;
+  course?: number | null;
+  type?: string | null;
+  image_url?: string | null;
   
   // Enhanced data from siagax.com API
   vesselDetails?: VesselDetailsData;

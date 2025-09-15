@@ -19,6 +19,7 @@ import { useTimelineEvents } from '@/hooks/useTimelineEvents';
 import { getEventIcon } from '@/utils/eventIcons';
 import { useVesselStatus } from '@/hooks/useVesselStatus';
 import IncidentModal from '../../components/IncidentModal';
+import { getAppVersion } from '@/utils/version';
 
 // Tweet interface
 interface Tweet {
@@ -764,26 +765,51 @@ const Timeline = ({ vessels, onVesselListOpen, onEventClick }: {
   return (
     <div className="absolute bottom-20 md:bottom-12 left-4 right-4 z-40 bg-gray-900/95 backdrop-blur-sm border border-gray-700 rounded-lg">
       {/* Vessel Count */}
-      <div className="absolute -top-30 md:-top-30 left-0 z-50">
-        <button
-          onClick={onVesselListOpen}
-          className="bg-black/90 backdrop-blur-sm text-white rounded-lg shadow-xl border border-gray-600 p-3 w-[120px] relative hover:bg-black/95 hover:border-gray-500 transition-all duration-200 cursor-pointer group"
-          aria-label="View vessel list"
-        >
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">
-              {animatedCount}
+      <div className="absolute -top-48 md:-top-48 left-0 z-50">
+        <div className="bg-black/90 backdrop-blur-sm text-white rounded-lg shadow-xl border border-gray-600 p-3 w-[140px] relative">
+          <button
+            onClick={onVesselListOpen}
+            className="w-full hover:bg-black/95 hover:border-gray-500 transition-all duration-200 cursor-pointer group"
+            aria-label="View vessel list"
+          >
+            <div className="text-center">
+              <div className="text-3xl font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">
+                {animatedCount}
+              </div>
+              <div className="flex items-center justify-center gap-1 text-sm text-gray-300 group-hover:text-gray-200 transition-colors">
+                <FaShip className="w-3 h-3 text-white group-hover:text-blue-300 transition-colors" />
+                <span>Vessels</span>
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-1 text-sm text-gray-300 group-hover:text-gray-200 transition-colors">
-              <FaShip className="w-3 h-3 text-white group-hover:text-blue-300 transition-colors" />
-              <span>Vessels</span>
+            {/* Info Icon */}
+            <div className="absolute top-1 right-1 w-5 h-5 bg-blue-600 group-hover:bg-blue-500 rounded-full flex items-center justify-center transition-colors duration-200">
+              <FaInfo className="w-2.5 h-2.5 text-white" />
+            </div>
+          </button>
+          
+          {/* Color Legend */}
+          <div className="mt-2 pt-2 border-t border-gray-600">
+            <div className="text-xs text-gray-400 mb-1 text-center">Origin Countries</div>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <span className="text-gray-300">Spain</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-gray-300">Italy</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-gray-300">Tunisia</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-gray-300">Greece</span>
+              </div>
             </div>
           </div>
-          {/* Info Icon */}
-          <div className="absolute top-1 right-1 w-5 h-5 bg-blue-600 group-hover:bg-blue-500 rounded-full flex items-center justify-center transition-colors duration-200">
-            <FaInfo className="w-2.5 h-2.5 text-white" />
-          </div>
-        </button>
+        </div>
       </div>
       
       {/* Donate Button */}
@@ -918,7 +944,7 @@ const Timeline = ({ vessels, onVesselListOpen, onEventClick }: {
 
 function AppContent() {
   const { currentVessel, isVesselPanelVisible, hideVesselDetails, showVesselDetails, zoomToLocation, mapRef, currentTime } = useMap();
-  const { vessels } = useVessels();
+  const { vessels, isInitialLoad, isBackgroundLoading, loadFullData } = useVessels();
   const { getVesselStatus, isInitialized: isVesselStatusInitialized } = useVesselStatus();
   const { trackMapInteraction } = useAnalytics();
   usePerformanceMonitoring();
@@ -1008,12 +1034,22 @@ function AppContent() {
     }
 
     return vessels.map(vessel => {
+      const webhookStatus = getVesselStatus(vessel.mmsi, time);
+      
       if (!vessel.positions || vessel.positions.length === 0) {
+        // For vessels with no position data, check if they should be visible based on their static timestamp
+        if (vessel.timestamp) {
+          const vesselTimestamp = new Date(vessel.timestamp);
+          if (time < vesselTimestamp) {
+            // Hide vessel if current time is before its static timestamp
+            return { ...vessel, positions: [], latitude: '', longitude: '', vessel_status: webhookStatus || 'sailing' };
+          }
+        }
+        // Show vessel with static coordinates if time is after its timestamp
         return vessel;
       }
 
       const timelineStatus = getTimelineVesselStatus(vessel, time);
-      const webhookStatus = getVesselStatus(vessel.mmsi, time);
 
       // Use webhook status as the only source of truth for UI display
       // Default to 'sailing' if no webhook data available
@@ -1024,7 +1060,7 @@ function AppContent() {
       // Use webhook status only for UI display (marker icon, status text, etc.)
       switch (timelineStatus) {
         case 'preparing':
-          // Hide vessel completely until first data
+          // Hide vessel completely until they start transmitting data
           return { ...vessel, positions: [], latitude: '', longitude: '', vessel_status: finalStatus };
 
         case 'active':
@@ -1066,6 +1102,11 @@ function AppContent() {
             return { ...vessel, positions: [], vessel_status: finalStatus };
           }
 
+          // Check if this is the vessel's first appearance (spawn animation)
+          const firstDataTime = new Date(vessel.positions[0].timestamp_utc);
+          const timeDiff = Math.abs(time.getTime() - firstDataTime.getTime());
+          const isSpawning = timeDiff <= 5 * 60 * 1000; // 5 minutes tolerance
+
           const latestPosition = validPositions[validPositions.length - 1];
           return {
             ...vessel,
@@ -1073,7 +1114,12 @@ function AppContent() {
             latitude: latestPosition.latitude.toString(),
             longitude: latestPosition.longitude.toString(),
             timestamp: latestPosition.timestamp_utc,
-            vessel_status: finalStatus // Use webhook status for UI display
+            vessel_status: finalStatus, // Use webhook status for UI display
+            isSpawning: isSpawning, // Flag to trigger spawn animation
+            // Update course data from the latest position
+            course: latestPosition.course || null,
+            speed_kmh: latestPosition.speed_kmh || null,
+            speed_knots: latestPosition.speed_knots || null
           };
 
         case 'completed':
@@ -1085,7 +1131,11 @@ function AppContent() {
             latitude: lastPosition.latitude.toString(),
             longitude: lastPosition.longitude.toString(),
             timestamp: lastPosition.timestamp_utc,
-            vessel_status: finalStatus // Use webhook status for UI display
+            vessel_status: finalStatus, // Use webhook status for UI display
+            // Update course data from the last position
+            course: lastPosition.course || null,
+            speed_kmh: lastPosition.speed_kmh || null,
+            speed_knots: lastPosition.speed_knots || null
           };
 
         case 'sailing':
@@ -1097,7 +1147,11 @@ function AppContent() {
             latitude: lastSailingPosition.latitude.toString(),
             longitude: lastSailingPosition.longitude.toString(),
             timestamp: lastSailingPosition.timestamp_utc,
-            vessel_status: finalStatus // Use webhook status for UI display
+            vessel_status: finalStatus, // Use webhook status for UI display
+            // Update course data from the last position
+            course: lastSailingPosition.course || null,
+            speed_kmh: lastSailingPosition.speed_kmh || null,
+            speed_knots: lastSailingPosition.speed_knots || null
           };
 
         case 'no-data':
@@ -1112,8 +1166,9 @@ function AppContent() {
     return getVesselsAtTime(currentTime);
   }, [getVesselsAtTime, currentTime]);
 
-  // Show loading state until both data sources are ready
-  const isDataReady = vessels.length > 0 && isVesselStatusInitialized;
+  // Show map immediately when vessels are loaded
+  const isDataReady = vessels.length > 0;
+  const isStatusReady = isVesselStatusInitialized;
 
   // Handle mobile responsiveness
   useEffect(() => {
@@ -1303,15 +1358,52 @@ function AppContent() {
             <div className="h-full flex items-center justify-center bg-gray-100">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading vessel data and status...</p>
+                <p className="text-gray-600">Loading vessel data...</p>
                 <p className="text-sm text-gray-500 mt-2">
                   Vessels: {vessels.length > 0 ? '✓' : '⏳'} | 
-                  Status: {isVesselStatusInitialized ? '✓' : '⏳'}
+                  Status: {isStatusReady ? '✓' : '⏳'}
                 </p>
+                {isInitialLoad && (
+                  <p className="text-xs text-blue-600 mt-1">Loading recent data for faster display...</p>
+                )}
               </div>
             </div>
           ) : (
-            <FlotillaMap vessels={vesselsAtCurrentTime} onAboutClick={() => setIsAboutModalOpen(true)} />
+            <>
+              <FlotillaMap vessels={vesselsAtCurrentTime} onAboutClick={() => setIsAboutModalOpen(true)} />
+              {/* Status loading indicator */}
+              {!isStatusReady && (
+                <div className="absolute top-4 left-4 z-50 bg-yellow-500/90 backdrop-blur-sm text-black text-xs px-3 py-2 rounded-lg shadow-lg border border-yellow-400">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-3 h-3 border border-black border-t-transparent rounded-full"></div>
+                    <span>Loading real-time status updates...</span>
+                  </div>
+                </div>
+              )}
+              {/* Background loading indicator */}
+              {isBackgroundLoading && (
+                <div className="absolute top-4 right-4 z-50 bg-green-500/90 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg shadow-lg border border-green-400">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full"></div>
+                    <span>Loading complete pathways...</span>
+                  </div>
+                </div>
+              )}
+              {/* Initial load indicator */}
+              {isInitialLoad && !isBackgroundLoading && (
+                <div className="absolute top-4 right-4 z-50 bg-blue-500/90 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg shadow-lg border border-blue-400">
+                  <div className="flex items-center gap-2">
+                    <span>📊 Latest positions loaded</span>
+                    <button 
+                      onClick={loadFullData}
+                      className="underline hover:no-underline"
+                    >
+                      Load full data now
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           
           {/* Enhanced Vessel Details Panel - Inside Map Container */}
@@ -1444,6 +1536,7 @@ function AppContent() {
 export default function FlotillaClient() {
   // Console ASCII Art
   useEffect(() => {
+    const version = getAppVersion();
     console.log(`
 ░▒▓█▓▒░░▒▓███████▓▒░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓████████▓▒░▒▓█▓▒░              ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░                                        
 ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░             ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░                                        
@@ -1476,7 +1569,7 @@ export default function FlotillaClient() {
     ╔══════════════════════════════════════════════════════════╗
     ║                🚢 FLOTILLA TRACKER 🚢                     ║
     ║              Sumud Nusantara Mission                     ║
-    ║                   Version: 1.0.26                        ║
+    ║                   Version: ${version.padEnd(8)} ║
     ╚══════════════════════════════════════════════════════════╝
     `);
   }, []);

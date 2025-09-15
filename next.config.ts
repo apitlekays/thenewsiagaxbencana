@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Removed 'output: standalone' for Vercel compatibility
   async headers() {
     return [
       {
