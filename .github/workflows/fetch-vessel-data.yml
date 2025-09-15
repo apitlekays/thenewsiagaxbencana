@@ -1,0 +1,68 @@
+name: Fetch Vessel Data
+
+on:
+  # Run every 15 minutes
+  schedule:
+    - cron: '*/15 * * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual trigger'
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fetch vessel data from GSF API
+        run: |
+          echo "🚢 Starting vessel data fetch at $(date)"
+          
+          # Get Supabase project URL and Edge Function URL
+          SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "❌ Missing Supabase credentials"
+            exit 1
+          fi
+          
+          # Construct the Edge Function URL
+          EDGE_FUNCTION_URL="${SUPABASE_URL}/functions/v1/fetch-vessel-data"
+          
+          echo "📡 Calling Edge Function: $EDGE_FUNCTION_URL"
+          
+          # Call the Edge Function
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            "$EDGE_FUNCTION_URL")
+          
+          # Extract HTTP status code and response body
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          echo "📊 Response Status: $HTTP_CODE"
+          echo "📋 Response Body: $RESPONSE_BODY"
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Vessel data fetch completed successfully"
+            
+            # Parse the response to show summary
+            echo "$RESPONSE_BODY" | jq -r '.summary | "Vessels processed: \(.vesselsProcessed), Positions processed: \(.positionsProcessed), Errors: \(.errors)"'
+          else
+            echo "❌ Vessel data fetch failed with status: $HTTP_CODE"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+          
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Vessel data fetch failed at $(date)"
+          echo "Check the logs above for details"
