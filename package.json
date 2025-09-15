@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.57.4",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.4",
     "flipclock": "^1.0.1",
     "leaflet": "^1.9.4",
     "malaysia-state-flag-icon-css": "github:jwarby/malaysia-state-flag-icon-css",
@@ -28,16 +30,14 @@
     "react-leaflet": "^5.0.0",
     "react-map-gl": "^8.0.4",
     "recharts": "^3.0.2",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/maplibre-gl": "^1.13.2",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "typescript": "^5"
+    "@types/react-dom": "^19"
   }
 }
