@@ -97,21 +97,71 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
   const zoomToLocation = (lat: number, lng: number, zoom: number = 12) => {
     if (mapRef.current && mapLoaded) {
-      mapRef.current.flyTo({
-        center: [lng, lat],
-        zoom,
-        duration: 2500
-      });
+      const map = mapRef.current.getMap ? mapRef.current.getMap() : (mapRef.current as unknown as any);
+      if (!map) return;
+
+      // Cancel any ongoing animations to avoid chaining wiggle
+      if (typeof map.stop === 'function') {
+        map.stop();
+      }
+
+      // Preserve current bearing and pitch for smoothness
+      const bearing = typeof map.getBearing === 'function' ? map.getBearing() : 0;
+      const pitch = typeof map.getPitch === 'function' ? map.getPitch() : 0;
+
+      // Skip animation if we're already close to target
+      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 };
+      const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 0;
+      const dist = Math.hypot((currentCenter.lng ?? 0) - lng, (currentCenter.lat ?? 0) - lat);
+      const zoomDiff = Math.abs((currentZoom ?? 0) - zoom);
+      if (dist < 0.0005 && zoomDiff < 0.05) return;
+
+      // Use easeTo for smoother animation with shorter duration
+      if (typeof map.easeTo === 'function') {
+        map.easeTo({
+          center: [lng, lat],
+          zoom,
+          bearing,
+          pitch,
+          duration: 800,
+          essential: true,
+        });
+      } else if (typeof map.flyTo === 'function') {
+        map.flyTo({ center: [lng, lat], zoom, duration: 800 });
+      }
     }
   };
 
   const resetToDefault = () => {
     if (mapRef.current && mapLoaded) {
-      mapRef.current.flyTo({
-        center: MALAYSIA_CENTER,
-        zoom: DEFAULT_ZOOM,
-        duration: 2500
-      });
+      const map = mapRef.current.getMap ? mapRef.current.getMap() : (mapRef.current as unknown as any);
+      if (!map) return;
+
+      if (typeof map.stop === 'function') {
+        map.stop();
+      }
+
+      const bearing = typeof map.getBearing === 'function' ? map.getBearing() : 0;
+      const pitch = typeof map.getPitch === 'function' ? map.getPitch() : 0;
+
+      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 };
+      const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 0;
+      const dist = Math.hypot((currentCenter.lng ?? 0) - MALAYSIA_CENTER[0], (currentCenter.lat ?? 0) - MALAYSIA_CENTER[1]);
+      const zoomDiff = Math.abs((currentZoom ?? 0) - DEFAULT_ZOOM);
+      if (dist < 0.0005 && zoomDiff < 0.05) return;
+
+      if (typeof map.easeTo === 'function') {
+        map.easeTo({
+          center: MALAYSIA_CENTER,
+          zoom: DEFAULT_ZOOM,
+          bearing,
+          pitch,
+          duration: 800,
+          essential: true,
+        });
+      } else if (typeof map.flyTo === 'function') {
+        map.flyTo({ center: MALAYSIA_CENTER, zoom: DEFAULT_ZOOM, duration: 800 });
+      }
     }
   };
 

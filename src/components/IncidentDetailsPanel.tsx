@@ -10,6 +10,12 @@ import {
   sanitizeUrl 
 } from '@/utils/security';
 
+function formatWaterLevel(waterLevel: string | undefined): string {
+  if (!waterLevel) return 'N/A';
+  if (waterLevel === '-9999') return 'Error';
+  return waterLevel;
+}
+
 interface Alert {
   station_id: string;
   station_name: string;
@@ -181,7 +187,7 @@ export default function IncidentDetailsPanel({ alert, isVisible, onClose, }: Inc
                   <FaWater className="text-base" />
                   <span className="text-sm font-semibold">Water Level (m)</span>
                 </div>
-                <div className="text-blue-100 text-2xl font-bold leading-tight truncate">{display.clean_water_level || 'N/A'}</div>
+                <div className="text-blue-100 text-2xl font-bold leading-tight truncate">{formatWaterLevel(display.clean_water_level)}</div>
                 <div className="flex justify-between text-xs text-blue-300">
                   <span>Trend: <span className="font-semibold">{display.trend || 'N/A'}</span></span>
                   <span>Severity: <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${getSeverityBadge(display.wl_severity_level || '')}`}>{display.wl_severity_level || 'N/A'}</span></span>

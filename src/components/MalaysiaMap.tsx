@@ -120,6 +120,12 @@ function getSeverityColor(alert: Alert): string {
   return '#05df72'; // green
 }
 
+function formatWaterLevel(waterLevel: string | undefined): string {
+  if (!waterLevel) return 'N/A';
+  if (waterLevel === '-9999') return 'Error';
+  return waterLevel;
+}
+
 function AlertMarkers() {
   const alerts: Alert[] = useCurrentAlerts(60000);
   const { mapLoaded } = useMap();
@@ -265,7 +271,7 @@ function AlertMarkers() {
                   <FaWater className="text-blue-400 text-xs" />
                   <span className="text-blue-300 text-xs font-medium">Water Level</span>
                 </div>
-                <div className="text-blue-100 text-sm font-bold">{popupInfo.clean_water_level || 'N/A'}</div>
+                <div className="text-blue-100 text-sm font-bold">{formatWaterLevel(popupInfo.clean_water_level)}</div>
               </div>
               <div className="bg-purple-900/20 rounded-lg p-2 border border-purple-500/20">
                 <div className="flex items-center gap-1 mb-1">
@@ -310,6 +316,28 @@ function PPSMarkers() {
         
         const allPoints = validData.flatMap((item) => item.points || []);
         
+        // Debug: Log invalid coordinates for troubleshooting
+        const invalidPoints = allPoints.filter(point => {
+          if (!point || !point.id || !point.longi || !point.latti) return true;
+          if (typeof point.longi !== 'number' || typeof point.latti !== 'number') return true;
+          if (isNaN(point.longi) || isNaN(point.latti)) return true;
+          if (point.latti < -90 || point.latti > 90) return true;
+          if (point.longi < -180 || point.longi > 180) return true;
+          return false;
+        });
+        
+        if (invalidPoints.length > 0) {
+          console.warn('PPSMarkers: Found invalid coordinates:', invalidPoints.map(p => ({
+            id: p.id,
+            name: p.name || 'Unknown',
+            lat: p.latti,
+            lng: p.longi,
+            latType: typeof p.latti,
+            lngType: typeof p.longi
+          })));
+          console.warn(`PPSMarkers: ${invalidPoints.length} locations have invalid coordinates and will not be displayed on the map.`);
+        }
+        
         // Further filter points to ensure they have valid coordinates
         const validPoints = allPoints.filter(point => {
           return point && 
@@ -320,6 +348,8 @@ function PPSMarkers() {
                  typeof point.latti === 'number' &&
                  !isNaN(point.longi) && 
                  !isNaN(point.latti) &&
+                 point.latti >= -90 && point.latti <= 90 && // Valid latitude range
+                 point.longi >= -180 && point.longi <= 180 && // Valid longitude range
                  Object.keys(point).length > 1; // Ensure it's not just an empty object
         });
         
@@ -348,20 +378,31 @@ function PPSMarkers() {
 
   return (
     <>
-      {points.map(p => (
-        <Marker
-          key={p.id}
-          longitude={p.longi}
-          latitude={p.latti}
-          anchor="bottom"
-        >
-          <div style={{ animation: isRefreshing ? 'bounce 1s ease-in-out' : 'none' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3 L22 21 Q23 23 20 23 H15 Q14 23 13.5 22 L12 19 L10.5 22 Q10 23 9 23 H4 Q1 23 2 21 L12 3 Z" fill="#3B82F6" />
-            </svg>
-          </div>
-        </Marker>
-      ))}
+      {points.map(p => {
+        // Additional safety check before rendering marker
+        if (typeof p.longi !== 'number' || typeof p.latti !== 'number' ||
+            isNaN(p.longi) || isNaN(p.latti) ||
+            p.latti < -90 || p.latti > 90 ||
+            p.longi < -180 || p.longi > 180) {
+          console.warn('PPSMarkers: Skipping invalid marker:', p);
+          return null;
+        }
+        
+        return (
+          <Marker
+            key={p.id}
+            longitude={p.longi}
+            latitude={p.latti}
+            anchor="bottom"
+          >
+            <div style={{ animation: isRefreshing ? 'bounce 1s ease-in-out' : 'none' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3 L22 21 Q23 23 20 23 H15 Q14 23 13.5 22 L12 19 L10.5 22 Q10 23 9 23 H4 Q1 23 2 21 L12 3 Z" fill="#3B82F6" />
+              </svg>
+            </div>
+          </Marker>
+        );
+      })}
     </>
   );
 }

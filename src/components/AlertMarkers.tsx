@@ -7,6 +7,12 @@ import { FaWater, FaCloudRain, FaMapMarkerAlt } from 'react-icons/fa';
 import L, { Marker as LeafletMarker } from 'leaflet';
 import { getSeverityBadge } from '../utils/getSeverityBadge';
 
+function formatWaterLevel(waterLevel: string | undefined): string {
+  if (!waterLevel) return 'N/A';
+  if (waterLevel === '-9999') return 'Error';
+  return waterLevel;
+}
+
 interface Alert {
   station_id: string;
   station_name: string;
@@ -144,7 +150,7 @@ export default function AlertMarkers() {
                         <FaWater className="text-blue-400 text-xs" />
                         <span className="text-blue-300 text-xs font-medium">Water Level</span>
                       </div>
-                      <div className="text-blue-100 text-sm font-bold">{alert.clean_water_level || 'N/A'}</div>
+                      <div className="text-blue-100 text-sm font-bold">{formatWaterLevel(alert.clean_water_level)}</div>
                     </div>
                     {/* Rainfall */}
                     <div className="bg-purple-900/20 rounded-lg p-2 border border-purple-500/20">

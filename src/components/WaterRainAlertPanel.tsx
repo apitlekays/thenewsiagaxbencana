@@ -50,6 +50,12 @@ function getSeverityBorder(severity: string) {
   return 'border-l-4 border-green-400';
 }
 
+function formatWaterLevel(waterLevel: string | undefined): string {
+  if (!waterLevel) return 'N/A';
+  if (waterLevel === '-9999') return 'Error';
+  return waterLevel;
+}
+
 export default function WaterRainAlertPanel() {
   const alerts = useCurrentAlerts(300000);
   const { zoomToLocation, showIncidentDetails } = useMap();
@@ -193,7 +199,7 @@ export default function WaterRainAlertPanel() {
                       <FaWater className="text-blue-400 text-xs" />
                       <span className="text-blue-300 text-xs font-medium">Water Level (m)</span>
                     </div>
-                    <div className="text-blue-100 text-base font-bold mb-0.5">{alert.clean_water_level || 'N/A'}</div>
+                    <div className="text-blue-100 text-base font-bold mb-0.5">{formatWaterLevel(alert.clean_water_level)}</div>
                     <div className="text-blue-400/70 text-xs">Trend: {alert.trend || 'N/A'}</div>
                   </div>
                   

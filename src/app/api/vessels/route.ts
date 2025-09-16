@@ -21,12 +21,20 @@ export async function GET(request: Request) {
     // Check query parameters for optimization
     const isInitialLoad = searchParams.get('initial') === 'true';
     const vesselId = searchParams.get('vesselId');
+    const includeDecommissioned = searchParams.get('include_decommissioned') === 'true';
     
-    // Fetch vessels first
-    const { data: vessels, error: vesselsError } = await supabase
+    // Build query for vessels
+    let vesselsQuery = supabase
       .from('vessels')
       .select('*')
       .order('updated_at', { ascending: false });
+    
+    // Only fetch active vessels unless explicitly requested
+    if (!includeDecommissioned) {
+      vesselsQuery = vesselsQuery.eq('status', 'active');
+    }
+    
+    const { data: vessels, error: vesselsError } = await vesselsQuery;
 
     if (vesselsError) {
       console.error('Error fetching vessels:', vesselsError);
@@ -189,6 +197,8 @@ export async function GET(request: Request) {
         'Access-Control-Allow-Headers': 'Content-Type',
         'X-Data-Type': isInitialLoad ? 'initial' : vesselId ? 'vessel-specific' : 'full',
         'X-Position-Count': positions.length.toString(),
+        'X-Vessel-Count': transformedVessels.length.toString(),
+        'X-Include-Decommissioned': includeDecommissioned.toString(),
         'X-Response-Size': JSON.stringify(transformedVessels).length.toString(),
       },
     });

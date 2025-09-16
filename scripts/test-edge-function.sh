@@ -37,7 +37,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" \
 
 # Extract HTTP status code and response body
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
+RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
 
 echo "📊 Response Status: $HTTP_CODE"
 echo "📋 Response Body:"
