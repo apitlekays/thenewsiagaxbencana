@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useRef, useState, ReactNode } from 'react';
 import type { MapRef } from 'react-map-gl/maplibre';
+import type { Map as MaplibreMap } from 'maplibre-gl';
 
 export interface Alert {
   station_id: string;
@@ -97,7 +98,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
   const zoomToLocation = (lat: number, lng: number, zoom: number = 12) => {
     if (mapRef.current && mapLoaded) {
-      const map = mapRef.current.getMap ? mapRef.current.getMap() : (mapRef.current as unknown as any);
+      const raw = typeof mapRef.current.getMap === 'function' ? mapRef.current.getMap() : mapRef.current;
+      const map = raw as unknown as MaplibreMap;
       if (!map) return;
 
       // Cancel any ongoing animations to avoid chaining wiggle
@@ -110,7 +112,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
       const pitch = typeof map.getPitch === 'function' ? map.getPitch() : 0;
 
       // Skip animation if we're already close to target
-      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 };
+      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 } as any;
       const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 0;
       const dist = Math.hypot((currentCenter.lng ?? 0) - lng, (currentCenter.lat ?? 0) - lat);
       const zoomDiff = Math.abs((currentZoom ?? 0) - zoom);
@@ -134,7 +136,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
   const resetToDefault = () => {
     if (mapRef.current && mapLoaded) {
-      const map = mapRef.current.getMap ? mapRef.current.getMap() : (mapRef.current as unknown as any);
+      const raw = typeof mapRef.current.getMap === 'function' ? mapRef.current.getMap() : mapRef.current;
+      const map = raw as unknown as MaplibreMap;
       if (!map) return;
 
       if (typeof map.stop === 'function') {
@@ -144,7 +147,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
       const bearing = typeof map.getBearing === 'function' ? map.getBearing() : 0;
       const pitch = typeof map.getPitch === 'function' ? map.getPitch() : 0;
 
-      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 };
+      const currentCenter = typeof map.getCenter === 'function' ? map.getCenter() : { lng: 0, lat: 0 } as any;
       const currentZoom = typeof map.getZoom === 'function' ? map.getZoom() : 0;
       const dist = Math.hypot((currentCenter.lng ?? 0) - MALAYSIA_CENTER[0], (currentCenter.lat ?? 0) - MALAYSIA_CENTER[1]);
       const zoomDiff = Math.abs((currentZoom ?? 0) - DEFAULT_ZOOM);
