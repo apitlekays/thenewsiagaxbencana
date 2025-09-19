@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Globe, Mail } from "lucide-react";
-import Link from "next/link";
 
 export default function Footer() {
   return (

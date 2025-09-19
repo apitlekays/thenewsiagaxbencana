@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get the Supabase project URL and service key from environment variables
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
