@@ -3,13 +3,42 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+interface Diagnostics {
+  envVars?: {
+    supabaseUrl: boolean;
+    supabaseAnonKey: boolean;
+    supabaseUrlValue?: string;
+  };
+  auth?: {
+    success: boolean;
+    error?: string;
+    hasSession: boolean;
+  };
+  vessels?: {
+    success: boolean;
+    error?: string;
+    count: number;
+    sampleData?: Array<{ id: number; name: string; status: string }>;
+  };
+  positions?: {
+    success: boolean;
+    error?: string;
+    count: number;
+    sampleData?: Array<{ id: number; vessel_id: number | null; gsf_vessel_id: number }>;
+  };
+  connection?: {
+    success: boolean;
+    error: string;
+  };
+}
+
 export default function DebugPage() {
-  const [diagnostics, setDiagnostics] = useState<any>({});
+  const [diagnostics, setDiagnostics] = useState<Diagnostics>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const runDiagnostics = async () => {
-      const results: any = {};
+      const results: Diagnostics = {};
 
       // Check environment variables
       results.envVars = {
@@ -44,7 +73,7 @@ export default function DebugPage() {
             success: !vesselsError,
             error: vesselsError?.message,
             count: vesselsData?.length || 0,
-            sampleData: vesselsData
+            sampleData: vesselsData ?? undefined
           };
 
           // Test vessel_positions table access
@@ -57,7 +86,7 @@ export default function DebugPage() {
             success: !positionsError,
             error: positionsError?.message,
             count: positionsData?.length || 0,
-            sampleData: positionsData
+            sampleData: positionsData ?? undefined
           };
 
         } catch (error) {
