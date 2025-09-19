@@ -1,43 +1,39 @@
 {
-  "name": "mapim-strategic-centre",
-  "version": "1.0.32",
+  "name": "thenewsiagaxbencana",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run set-version && next build",
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "set-version": "node scripts/set-version.js",
-    "vercel-build": "npm run build",
-    "docker:build": "docker-compose --profile prod build",
-    "docker:up": "docker-compose --profile prod up -d"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@lottiefiles/dotlottie-react": "^0.14.2",
+    "@lottiefiles/dotlottie-react": "^0.17.1",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.57.4",
-    "@tailwindcss/postcss": "^4",
-    "@types/leaflet": "^1.9.19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "flipclock": "^1.0.1",
+    "@types/leaflet": "^1.9.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
-    "malaysia-state-flag-icon-css": "github:jwarby/malaysia-state-flag-icon-css",
-    "maplibre-gl": "^5.6.0",
-    "next": "15.3.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-icons": "^5.5.0",
+    "lucide-react": "^0.544.0",
+    "next": "15.5.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-leaflet": "^5.0.0",
-    "react-map-gl": "^8.0.4",
-    "recharts": "^3.0.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/maplibre-gl": "^1.13.2",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.3",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.8",
+    "typescript": "^5"
   }
 }

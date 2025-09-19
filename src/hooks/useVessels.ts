@@ -1,131 +1,179 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Vessel } from '@/contexts/MapContext'; // Re-using the Vessel interface from MapContext
+"use client";
 
-// Global state to prevent multiple instances from conflicting
-let globalVessels: Vessel[] = [];
-let globalInterval: NodeJS.Timeout | null = null;
-const globalListeners: Set<() => void> = new Set();
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-export function useVessels(intervalMs: number = 900000) { // Changed to 15 minutes (900000ms)
-  const [vessels, setVessels] = useState<Vessel[]>(globalVessels);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export interface Vessel {
+  id: number;
+  gsf_id: number;
+  name: string;
+  mmsi: string | null;
+  latitude: number;
+  longitude: number;
+  timestamp_utc: string;
+  vessel_status: string;
+  origin: string | null;
+  speed_kmh: number | null;
+  speed_knots: number | null;
+  course: number | null;
+  type: string | null;
+  status: string;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VesselPosition {
+  id: number;
+  vessel_id: number | null;
+  gsf_vessel_id: number;
+  latitude: number;
+  longitude: number;
+  speed_kmh: number | null;
+  speed_knots: number | null;
+  course: number | null;
+  timestamp_utc: string;
+  created_at: string;
+}
+
+export function useVessels() {
+  const [vessels, setVessels] = useState<Vessel[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
 
-  async function fetchVessels(isInitial = false) {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const url = isInitial ? '/api/vessels?initial=true' : '/api/vessels';
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+  useEffect(() => {
+    // Initial fetch
+    const fetchVessels = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('vessels')
+          .select('*')
+          .eq('status', 'active')
+          .order('name');
+
+        if (error) throw error;
+        setVessels(data || []);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch vessels');
+        setLoading(false);
+      }
+    };
+
+    fetchVessels();
+
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('vessels-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vessels',
+          filter: 'status=eq.active'
         },
-        signal: AbortSignal.timeout(15000), // 15 second timeout
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      const vessels: Vessel[] = await res.json();
-      
-      // Validate response format
-      if (!Array.isArray(vessels)) {
-        throw new Error('Unexpected API response format');
-      }
-      
-      globalVessels = vessels;
-      setVessels(vessels);
-      setError(null);
-      
-      // Mark initial load as complete only after background loading is done
-      if (!isInitial) {
-        setIsInitialLoad(false);
-      }
-      
-      // Notify all listeners
-      globalListeners.forEach(listener => listener());
-      
-      // Force update if this is a background load
-      if (!isInitial) {
-        setVessels([...globalVessels]);
-      }
-    } catch (error) {
-      console.error('Error fetching vessels:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(errorMessage);
-      globalVessels = [];
-      setVessels([]);
-      globalListeners.forEach(listener => listener());
-    } finally {
-      setIsLoading(false);
-    }
-  }
+        (payload) => {
+          console.log('Vessel change received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setVessels(prev => [...prev, payload.new as Vessel]);
+          } else if (payload.eventType === 'UPDATE') {
+            setVessels(prev => 
+              prev.map(vessel => 
+                vessel.id === payload.new.id ? payload.new as Vessel : vessel
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setVessels(prev => 
+              prev.filter(vessel => vessel.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
 
-  useEffect(() => {
-    // Only initialize once globally
-    if (!isInitialized) {
-      setIsInitialized(true);
-      
-      // If no global interval exists, create one
-      if (!globalInterval) {
-        //console.log('Initializing global vessels fetch with interval:', intervalMs);
-        fetchVessels(true); // Initial fetch with limited data
-        globalInterval = setInterval(() => fetchVessels(false), intervalMs);
-      }
-    }
-
-    // Add this component as a listener
-    const updateListener = () => setVessels(globalVessels);
-    globalListeners.add(updateListener);
-
-    // Cleanup
     return () => {
-      globalListeners.delete(updateListener);
+      subscription.unsubscribe();
     };
-  }, [isInitialized, intervalMs]);
-
-  useEffect(() => {
-    const handleRefresh = () => {
-      fetchVessels(false); // Use full data for manual refresh
-    };
-    
-    window.addEventListener('refresh-map-data', handleRefresh);
-    return () => window.removeEventListener('refresh-map-data', handleRefresh);
   }, []);
 
-  // Function to load full vessel data in background
-  const loadFullData = useCallback(async () => {
-    if (isInitialLoad && !isBackgroundLoading) {
-      setIsBackgroundLoading(true);
-      
-      try {
-        await fetchVessels(false);
-      } catch (error) {
-        console.error('Background load failed:', error);
-      } finally {
-        setIsBackgroundLoading(false);
-      }
-    }
-  }, [isInitialLoad, isBackgroundLoading]);
+  return { vessels, loading, error };
+}
 
-  // Auto-trigger background loading after initial load
+export function useVesselPositions(vesselId?: number) {
+  const [positions, setPositions] = useState<VesselPosition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (isInitialLoad && !isBackgroundLoading && vessels.length > 0) {
-      // Start background loading after initial data is loaded
-      const timer = setTimeout(() => {
-        loadFullData();
-      }, 1000); // Wait 1 second after initial load
-      
-      return () => clearTimeout(timer);
+    if (!vesselId) {
+      setPositions([]);
+      setLoading(false);
+      return;
     }
-  }, [isInitialLoad, isBackgroundLoading, vessels.length, loadFullData]);
 
-  return { vessels, isLoading, error, isInitialLoad, isBackgroundLoading, loadFullData };
+    // Initial fetch
+    const fetchPositions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('vessel_positions')
+          .select('*')
+          .eq('vessel_id', vesselId)
+          .order('timestamp_utc', { ascending: false })
+          .limit(100); // Limit to recent positions
+
+        if (error) throw error;
+        setPositions(data || []);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch positions');
+        setLoading(false);
+      }
+    };
+
+    fetchPositions();
+
+    // Set up real-time subscription for this vessel's positions
+    const subscription = supabase
+      .channel(`vessel-positions-${vesselId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vessel_positions',
+          filter: `vessel_id=eq.${vesselId}`
+        },
+        (payload) => {
+          console.log('Position change received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setPositions(prev => [payload.new as VesselPosition, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setPositions(prev => 
+              prev.map(position => 
+                position.id === payload.new.id ? payload.new as VesselPosition : position
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setPositions(prev => 
+              prev.filter(position => position.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [vesselId]);
+
+  return { positions, loading, error };
 }

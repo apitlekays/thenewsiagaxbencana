@@ -1,0 +1,10 @@
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://zdleickljellmrlqeyee.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkbGVpY2tsamVsbG1ybHFleWVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDg5NjQsImV4cCI6MjA3MzQyNDk2NH0.B3iqC5O2L1FgS4Ib7_ogsit8fHSRkwGMZXYz2NmEnTc
+
+# GSF DATA 
+GSF_API_ENDPOINT=https://data.forensic-architecture.org/items/freedom_flotilla_vessels?limit=-1
+GSF_API_AUTH_BEARER_TOKEN=XoifjqNSNMOLKsfh6hO0bGfsQBygggUo
+
+# MAP STYLE
+https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json
