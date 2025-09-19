@@ -1,8 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Shield, Globe } from "lucide-react";
-import Link from "next/link";
+import { Globe } from "lucide-react";
 
 export default function Navigation() {
   return (
@@ -31,12 +29,6 @@ export default function Navigation() {
               Contact
             </a>
           </div>
-          <Button className="bg-emerald-800 hover:bg-emerald-900 text-white" asChild>
-            <Link href="/login">
-              <Shield className="w-4 h-4 mr-1" />
-              Admin Login
-            </Link>
-          </Button>
         </div>
       </div>
     </nav>

@@ -1,3 +1,62 @@
+Last updated: 2025-01-19
+
+# Thenewsiagaxbencana
+
+This project is a Next.js (App Router) application using React, TypeScript, Tailwind, shadcn/ui, Supabase (DB/Auth/Realtime), React-Leaflet, React Query, and Zustand. It powers a public site with a live vessel map and an admin-only dashboard.
+
+## Key Features
+- Public site with sections, legal pages, and a full-screen Leaflet map at `/sumudnusantara`
+- Supabase-backed vessel registry and historical positions
+- Edge Function to ingest GSF API data on a 15-minute schedule via Vercel cron
+- Admin dashboard (protected) with overview and vessel management
+
+## App Structure
+- Public routes: `/`, `/sumudnusantara`, `/about-sumudnusantara`, `/disclaimer`, `/privacy`, `/login`, `/debug`
+- Dashboard (admin): `/dashboard`, `/dashboard/vessels`
+- API route: `/api/cron/fetch-vessel-data` (Vercel cron target)
+- Providers: `AuthProvider` (Supabase auth) and `QueryProvider` (React Query)
+
+## Data & State
+- Data: Supabase tables `vessels`, `vessel_positions` (+ `incidents`, `user_roles`)
+- Ingestion: Supabase Edge Function `fetch-vessel-data` (source reference in `supabase-edge-function.ts.txt`)
+- Client data: React Query hooks with Realtime cache invalidation
+- UI state: Zustand store for map/dashboard UI
+
+## Local Development
+1. `npm install`
+2. Create `.env.local` file with the following variables:
+   ```bash
+   # Supabase Configuration
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+   
+   # GSF API Configuration
+   GSF_API_URL=https://data.forensic-architecture.org/items/freedom_flotilla_vessels?limit=-1
+   GSF_API_TOKEN=your_gsf_api_token
+   
+   # Map Configuration
+   STADIA_MAPS_STYLE_URL=https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json
+   ```
+3. `npm run dev`
+
+## Environment Variables
+See `docs/environment-variables.md` for complete setup guide and security best practices.
+
+## Deployment
+- Vercel project with environment variables set for both Preview and Production
+- Vercel cron configured in `vercel.json` to hit `/api/cron/fetch-vessel-data` every 15 minutes
+
+## ⚠️ Security Notice
+- **CREDENTIALS REMOVED**: Sensitive credentials have been removed from `docs/sumudnusantara/credentials.md`
+- **IMMEDIATE ACTION REQUIRED**: If you were using exposed credentials, rotate them immediately
+- **Environment Variables**: All secrets now use environment variables (see `docs/environment-variables.md`)
+- **Never commit**: `.env.local` files or any files containing secrets
+
+---
+
+*Original Next.js boilerplate content preserved below for reference:*
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
