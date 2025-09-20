@@ -97,7 +97,7 @@ export default function VesselTrackerMap() {
 
   // Handle vessel click
   const handleVesselClick = useCallback((vessel: { id: number; name: string; origin?: string | null }) => {
-    console.log('Vessel clicked:', vessel);
+    //console.log('Vessel clicked:', vessel);
     // Could add vessel details modal or other interactions here
   }, []);
 

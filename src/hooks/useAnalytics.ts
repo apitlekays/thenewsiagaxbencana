@@ -55,6 +55,22 @@ export const useAnalytics = () => {
     trackEvent('vessel_info_close', 'interaction', vesselName);
   }, [trackEvent]);
 
+  const trackInterceptionClick = useCallback((interceptionName: string) => {
+    trackEvent('interception_click', 'interaction', interceptionName);
+  }, [trackEvent]);
+
+  const trackInterceptionDrawerOpen = useCallback((interceptionName: string) => {
+    trackEvent('interception_drawer_open', 'interaction', interceptionName);
+  }, [trackEvent]);
+
+  const trackInterceptionDrawerClose = useCallback((interceptionName: string) => {
+    trackEvent('interception_drawer_close', 'interaction', interceptionName);
+  }, [trackEvent]);
+
+  const trackLocationMarkerClick = useCallback((locationName: string) => {
+    trackEvent('location_marker_click', 'interaction', locationName);
+  }, [trackEvent]);
+
   return {
     trackEvent,
     trackButtonClick,
@@ -66,5 +82,9 @@ export const useAnalytics = () => {
     trackDrawerClose,
     trackVesselInfoOpen,
     trackVesselInfoClose,
+    trackInterceptionClick,
+    trackInterceptionDrawerOpen,
+    trackInterceptionDrawerClose,
+    trackLocationMarkerClick,
   };
 };

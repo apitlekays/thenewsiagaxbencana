@@ -71,7 +71,7 @@ function createCourseTriangleIcon(origin: string | null, course: number, size: n
         <g transform="rotate(${course} ${size/2} ${size/2})">
           <polygon 
             points="${size/2},2 ${size/2 - size/3},${size - 2} ${size/2 + size/3},${size - 2}"
-            fill="${color}"
+            fill="${color}" 
           />
         </g>
       </svg>
@@ -249,8 +249,8 @@ function CourseTriangle({ vesselLat, vesselLng, course, origin }: {
       
       // Calculate pixel offset (zoom-independent)
       const pixelOffset = 20; // Fixed pixel distance from vessel center
-      const courseRad = (course * Math.PI) / 180;
-      
+  const courseRad = (course * Math.PI) / 180;
+  
       // Calculate offset in pixels
       const offsetX = pixelOffset * Math.sin(courseRad);
       const offsetY = -pixelOffset * Math.cos(courseRad); // Negative Y because screen coordinates are inverted
@@ -445,6 +445,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
     if (mapRef && vessel.latitude && vessel.longitude) {
       // Track vessel click in analytics
       analytics.trackVesselClick(vessel.name || `Vessel ${vessel.id}`, vessel.id);
+      
+      // Track vessel info box opening
+      analytics.trackVesselInfoOpen(vessel.name || `Vessel ${vessel.id}`);
       
       // Set selected vessel
       setSelectedVessel(vessel);
@@ -687,7 +690,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                       <h3 className="text-green-400 font-mono text-xs font-bold tracking-wider uppercase">
                         VESSEL STATUS
-                      </h3>
+                  </h3>
                     </div>
                   </div>
 
@@ -698,7 +701,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">IDENTIFICATION</div>
                       <div className="text-xs font-bold text-white font-mono tracking-wide">{vessel.name}</div>
                     </div>
-
+                    
                     {/* Status Grid */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-0.5">
@@ -710,8 +713,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           ></div>
                           <span className="text-green-300 font-mono text-xs">{vessel.origin || 'UNKNOWN'}</span>
                         </div>
-                      </div>
-                      
+                    </div>
+                    
                       <div className="space-y-0.5">
                         <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
                         <div className="text-green-300 font-mono text-xs">ANIMATED</div>
@@ -762,9 +765,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           <div className="flex justify-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               <Scale className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" /> LEGAL SUPPORT
-                            </span>
-                          </div>
-                        )}
+                        </span>
+                      </div>
+                    )}
                       </div>
                     </div>
                   </div>
@@ -804,7 +807,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                       <h3 className="text-green-400 font-mono text-xs font-bold tracking-wider uppercase">
                         VESSEL STATUS
-                      </h3>
+                  </h3>
                     </div>
                   </div>
 
@@ -815,7 +818,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">IDENTIFICATION</div>
                       <div className="text-xs font-bold text-white font-mono tracking-wide">{vessel.name}</div>
                     </div>
-
+                    
                     {/* Status Grid */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-0.5">
@@ -827,8 +830,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           ></div>
                           <span className="text-green-300 font-mono text-xs">{vessel.origin || 'UNKNOWN'}</span>
                         </div>
-                      </div>
-                      
+                    </div>
+                    
                       <div className="space-y-0.5">
                         <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
                         <div className="text-green-300 font-mono text-xs">{vessel.vessel_status || 'ACTIVE'}</div>
@@ -845,13 +848,13 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           <div className="text-blue-300 font-mono text-xs">
                             {vessel.course ? `${vessel.course.toFixed(1)}°` : 'N/A'}
                           </div>
-                        </div>
-                        
+                    </div>
+                    
                         <div className="space-y-0.5">
                           <div className="text-xs text-slate-500 font-mono">SPEED</div>
                           <div className="text-blue-300 font-mono text-xs">
                             {vessel.speed_knots ? `${vessel.speed_knots.toFixed(1)} kts` : 'N/A'}
-                          </div>
+                      </div>
                         </div>
                       </div>
                     </div>
@@ -861,8 +864,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">POSITION</div>
                       <div className="text-blue-300 font-mono text-xs">
                         {vessel.latitude?.toFixed(2)}, {vessel.longitude?.toFixed(2)}
-                      </div>
-                    </div>
+                        </div>
+                        </div>
 
                     {/* System Status */}
                     <div className="space-y-0.5">
@@ -893,8 +896,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               LEGAL SUPPORT
                             </span>
-                          </div>
-                        )}
+                      </div>
+                    )}
                       </div>
                     </div>
                   </div>
@@ -917,19 +920,49 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
 
         {/* Pulsing Location Markers */}
         {/* Barcelona, Spain */}
-        <Marker position={[41.3851, 2.1734]} icon={createPulsingLocationIconWithLabel('Barcelona', 'Spain', '#3B82F6')} />
+        <Marker 
+          position={[41.3851, 2.1734]} 
+          icon={createPulsingLocationIconWithLabel('Barcelona', 'Spain', '#3B82F6')}
+          eventHandlers={{
+            click: () => analytics.trackLocationMarkerClick('Barcelona')
+          }}
+        />
 
         {/* Tunis, Tunisia */}
-        <Marker position={[36.8065, 10.1815]} icon={createPulsingLocationIconWithLabel('Tunis', 'Tunisia', '#3B82F6')} />
+        <Marker 
+          position={[36.8065, 10.1815]} 
+          icon={createPulsingLocationIconWithLabel('Tunis', 'Tunisia', '#3B82F6')}
+          eventHandlers={{
+            click: () => analytics.trackLocationMarkerClick('Tunis')
+          }}
+        />
 
         {/* Augusta, Sicily */}
-        <Marker position={[37.2056, 15.2203]} icon={createPulsingLocationIconWithLabel('Augusta', 'Sicily, Italy', '#3B82F6')} />
+        <Marker 
+          position={[37.2056, 15.2203]} 
+          icon={createPulsingLocationIconWithLabel('Augusta', 'Sicily, Italy', '#3B82F6')}
+          eventHandlers={{
+            click: () => analytics.trackLocationMarkerClick('Augusta')
+          }}
+        />
 
         {/* Ermoupoli, Greece */}
-        <Marker position={[37.4414, 24.9347]} icon={createPulsingLocationIconWithLabel('Ermoupoli', 'Greece', '#3B82F6')} />
+        <Marker 
+          position={[37.4414, 24.9347]} 
+          icon={createPulsingLocationIconWithLabel('Ermoupoli', 'Greece', '#3B82F6')}
+          eventHandlers={{
+            click: () => analytics.trackLocationMarkerClick('Ermoupoli')
+          }}
+        />
 
         {/* Gaza (Green Marker) */}
-        <Marker position={[31.3547, 34.3088]} icon={createGreenPulsingIconWithLabel('Gaza', 'Palestine')} />
+        <Marker 
+          position={[31.3547, 34.3088]} 
+          icon={createGreenPulsingIconWithLabel('Gaza', 'Palestine')}
+          eventHandlers={{
+            click: () => analytics.trackLocationMarkerClick('Gaza')
+          }}
+        />
 
         {/* Previous Interception Markers */}
         {/* Madleen - 9 Jun 2025 */}
@@ -938,6 +971,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           icon={createRedInterceptionMarker('Madleen', '9 Jun 2025')}
           eventHandlers={{
             click: () => {
+              analytics.trackInterceptionClick('Madleen');
+              analytics.trackInterceptionDrawerOpen('Madleen');
               setSelectedInterception({
                 name: 'Madleen',
                 date: '9 Jun 2025',
@@ -962,6 +997,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           icon={createRedInterceptionMarker('Handala', '26-27 Jul 2025')}
           eventHandlers={{
             click: () => {
+              analytics.trackInterceptionClick('Handala');
+              analytics.trackInterceptionDrawerOpen('Handala');
               setSelectedInterception({
                 name: 'Handala',
                 date: '26-27 Jul 2025',
@@ -986,6 +1023,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           icon={createRedInterceptionMarker('Mavi Marmara', '31 May 2010')}
           eventHandlers={{
             click: () => {
+              analytics.trackInterceptionClick('Mavi Marmara');
+              analytics.trackInterceptionDrawerOpen('Mavi Marmara');
               setSelectedInterception({
                 name: 'Mavi Marmara',
                 date: '31 May 2010',
@@ -1010,6 +1049,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           icon={createRedInterceptionMarker('MV Rachel Corrie', '5 Jun 2010 (Est.)')}
           eventHandlers={{
             click: () => {
+              analytics.trackInterceptionClick('MV Rachel Corrie');
+              analytics.trackInterceptionDrawerOpen('MV Rachel Corrie');
               setSelectedInterception({
                 name: 'MV Rachel Corrie',
                 date: '5 Jun 2010',
@@ -1128,7 +1169,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                 >
                   <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 </button>
-              </div>
+    </div>
 
               {/* Vessel List */}
               <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -1205,10 +1246,13 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   INTERCEPTION DETAILS
                 </h3>
               </div>
-              <button
-                onClick={() => setSelectedInterception(null)}
-                className="text-slate-400 hover:text-red-400 transition-colors duration-200 font-mono text-lg font-bold"
-              >
+                <button
+                  onClick={() => {
+                    analytics.trackInterceptionDrawerClose(selectedInterception?.name || 'unknown');
+                    setSelectedInterception(null);
+                  }}
+                  className="text-slate-400 hover:text-red-400 transition-colors duration-200 font-mono text-lg font-bold"
+                >
                 ×
               </button>
             </div>
