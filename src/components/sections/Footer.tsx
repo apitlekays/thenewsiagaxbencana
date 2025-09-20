@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Globe, Mail } from "lucide-react";
+import packageJson from '../../../package.json';
 
 export default function Footer() {
   return (
@@ -32,7 +33,7 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">Solutions</h4>
             <ul className="space-y-2 text-slate-300">
               <li><a href="#" className="hover:text-white transition-colors">SiagaX Bencana</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">SiagaX Sumud Nusantara</a></li>
+              <li><a href="/about-sumudnusantara" className="hover:text-white transition-colors">SiagaX Sumud Nusantara</a></li>
               <li><a href="#" className="hover:text-white transition-colors">SiagaX Analitika</a></li>
               <li><a href="#" className="hover:text-white transition-colors">SiagaX Bantu</a></li>
               <li><a href="#" className="hover:text-white transition-colors">SiagaX Cyber</a></li>
@@ -53,7 +54,7 @@ export default function Footer() {
         <div className="border-t border-slate-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-slate-400">&copy; 2025 MAPIM Strategic Centre. All rights reserved.</p>
           <div className="flex items-center space-x-4 mt-4 md:mt-0">
-            <span className="text-slate-400">v2.1</span>
+            <span className="text-slate-400">v{packageJson.version}</span>
             <div className="flex space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="text-slate-400 text-sm">All systems operational</span>

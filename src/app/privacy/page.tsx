@@ -1,9 +1,54 @@
-"use client";
-
+import { Metadata } from 'next';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, ArrowLeft, Mail, MapPin, Calendar, Lock, Eye } from "lucide-react";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy - MAPIM Strategic Centre',
+  description: 'Privacy Policy for MAPIM Strategic Centre\'s digital humanitarian initiatives. Learn how we protect your data and ensure security in our disaster monitoring platform.',
+  keywords: 'privacy policy, data protection, MAPIM, Malaysia, digital humanitarian, disaster monitoring, data security, privacy rights',
+  authors: [{ name: 'MAPIM Strategic Centre' }],
+  creator: 'MAPIM Strategic Centre',
+  publisher: 'MAPIM Strategic Centre',
+  metadataBase: new URL('https://magic.mapim.dev'),
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    title: 'Privacy Policy - MAPIM Strategic Centre',
+    description: 'Privacy Policy for MAPIM Strategic Centre\'s digital humanitarian initiatives. Learn how we protect your data and ensure security.',
+    url: 'https://magic.mapim.dev/privacy',
+    siteName: 'MAPIM Strategic Centre',
+    images: [
+      {
+        url: '/mainMeta.png',
+        width: 1200,
+        height: 630,
+        alt: 'MAPIM Strategic Centre - Privacy Policy',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Policy - MAPIM Strategic Centre',
+    description: 'Privacy Policy for MAPIM Strategic Centre\'s digital humanitarian initiatives. Learn how we protect your data and ensure security.',
+    images: ['/mainMeta.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
 
 export default function PrivacyPolicy() {
   return (

@@ -71,7 +71,7 @@ export default function FeaturedShowcaseSection() {
               </div>
               <div className="relative">
                 <Image
-                  src="/mainpageSumud.png"
+                  src="/aboutTracker.png"
                   alt="SiagaX Sumud Nusantara - Digital Vessel Tracking System"
                   width={800}
                   height={600}

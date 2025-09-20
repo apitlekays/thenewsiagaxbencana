@@ -1,9 +1,54 @@
-"use client";
-
+import { Metadata } from 'next';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, ArrowLeft, Mail, MapPin, Calendar, Shield, AlertCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: 'Disclaimer - MAPIM Strategic Centre',
+  description: 'Disclaimer for MAPIM Strategic Centre\'s digital humanitarian initiatives. Important information about data accuracy, limitations, and usage of our disaster monitoring platform.',
+  keywords: 'disclaimer, MAPIM, Malaysia, digital humanitarian, disaster monitoring, data accuracy, limitations, legal notice',
+  authors: [{ name: 'MAPIM Strategic Centre' }],
+  creator: 'MAPIM Strategic Centre',
+  publisher: 'MAPIM Strategic Centre',
+  metadataBase: new URL('https://magic.mapim.dev'),
+  alternates: {
+    canonical: '/disclaimer',
+  },
+  openGraph: {
+    title: 'Disclaimer - MAPIM Strategic Centre',
+    description: 'Disclaimer for MAPIM Strategic Centre\'s digital humanitarian initiatives. Important information about data accuracy and limitations.',
+    url: 'https://magic.mapim.dev/disclaimer',
+    siteName: 'MAPIM Strategic Centre',
+    images: [
+      {
+        url: '/mainMeta.png',
+        width: 1200,
+        height: 630,
+        alt: 'MAPIM Strategic Centre - Disclaimer',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Disclaimer - MAPIM Strategic Centre',
+    description: 'Disclaimer for MAPIM Strategic Centre\'s digital humanitarian initiatives. Important information about data accuracy and limitations.',
+    images: ['/mainMeta.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
 
 export default function Disclaimer() {
   return (

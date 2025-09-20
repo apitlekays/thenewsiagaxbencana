@@ -1,11 +1,57 @@
-"use client";
-
+import { Metadata } from 'next';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Globe, MapPin, Ship, Users, Activity, Clock, Navigation } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import packageJson from '../../../package.json';
+
+export const metadata: Metadata = {
+  title: 'About Sumud Nusantara - Global Sumud Flotilla Tracking System',
+  description: 'Learn about the SiagaX Sumud Nusantara vessel tracking system supporting the Global Sumud Flotilla humanitarian mission. Real-time GPS tracking, fleet management, and mission monitoring.',
+  keywords: 'Sumud Nusantara, Global Sumud Flotilla, vessel tracking system, humanitarian mission, Gaza, maritime tracking, fleet management, real-time GPS, SiagaX',
+  authors: [{ name: 'MAPIM Strategic Centre' }],
+  creator: 'MAPIM Strategic Centre',
+  publisher: 'MAPIM Strategic Centre',
+  metadataBase: new URL('https://magic.mapim.dev'),
+  alternates: {
+    canonical: '/about-sumudnusantara',
+  },
+  openGraph: {
+    title: 'About Sumud Nusantara - Global Sumud Flotilla Tracking System',
+    description: 'Learn about the SiagaX Sumud Nusantara vessel tracking system supporting the Global Sumud Flotilla humanitarian mission.',
+    url: 'https://magic.mapim.dev/about-sumudnusantara',
+    siteName: 'MAPIM Strategic Centre',
+    images: [
+      {
+        url: '/sumudflotillametaimage.png',
+        width: 1200,
+        height: 630,
+        alt: 'Sumud Nusantara - Global Sumud Flotilla Tracking System',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'About Sumud Nusantara - Global Sumud Flotilla Tracking System',
+    description: 'Learn about the SiagaX Sumud Nusantara vessel tracking system supporting the Global Sumud Flotilla humanitarian mission.',
+    images: ['/sumudflotillametaimage.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
 
 export default function AboutSumudNusantaraPage() {
   return (
@@ -47,7 +93,7 @@ export default function AboutSumudNusantaraPage() {
               SiagaX Sumud Nusantara
             </h1>
             <p className="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto mb-6">
-              Real-time digital vessel tracking and management system for humanitarian missions at sea
+              Real-time digital vessel tracking and management system for the Global Sumud Flotilla humanitarian missions
             </p>
             <div className="flex items-center justify-center space-x-4">
               <Badge className="bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-white border border-green-500/30 flex items-center">
@@ -57,6 +103,74 @@ export default function AboutSumudNusantaraPage() {
               <Badge variant="outline" className="border-emerald-500 text-emerald-700 dark:text-emerald-400">
                 Real-time Tracking
               </Badge>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Global Sumud Flotilla Section */}
+      <section className="py-16 bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-800 dark:to-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+              About the Global Sumud Flotilla
+            </h2>
+            <p className="text-lg text-slate-600 dark:text-slate-300 max-w-4xl mx-auto">
+              The largest coordinated civilian flotilla in history, sailing to break the illegal siege on Gaza
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <Card className="bg-white dark:bg-slate-800 border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl text-slate-900 dark:text-white flex items-center">
+                  <Ship className="w-6 h-6 text-emerald-600 mr-2" />
+                  Mission Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-600 dark:text-slate-300 space-y-4">
+                  <p>
+                    The Global Sumud Flotilla is a coordinated, nonviolent fleet of vessels sailing from ports across the Mediterranean to break the Israeli occupation&apos;s illegal siege on Gaza. This summer, dozens of boats will set sail from ports around the world, converging toward Gaza in the largest coordinated civilian flotilla in history.
+                  </p>
+                  <p>
+                    Delegations from 39 countries have already committed to sail to Gaza as part of this historic maritime mission to break Israel&apos;s illegal siege and open a humanitarian corridor.
+                  </p>
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-slate-800 border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl text-slate-900 dark:text-white flex items-center">
+                  <Users className="w-6 h-6 text-blue-600 mr-2" />
+                  Coalition Partners
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-slate-600 dark:text-slate-300 space-y-4">
+                  <p>
+                    The flotilla brings together coordinators, organizers, and participants from the Maghreb Sumud Flotilla, Freedom Flotilla Coalition, Global Movement to Gaza, and Sumud Nusantara - united under a common goal to break the illegal siege on Gaza by sea.
+                  </p>
+                  <p>
+                    We are a coalition of everyday people—organizers, humanitarians, doctors, artists, clergy, lawyers, and seafarers—who believe in human dignity and the power of nonviolent action.
+                  </p>
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-2xl p-8 text-white text-center">
+            <h3 className="text-2xl font-bold mb-4">When the World Stays Silent, We Set Sail</h3>
+            <p className="text-emerald-100 text-lg mb-6">
+              Our efforts build on decades of Palestinian resistance and international solidarity. Though we belong to different nations, faiths, and political beliefs, we are united by a single truth: the siege and genocide must end.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" className="bg-white text-emerald-800 hover:bg-emerald-50 px-6 py-3" asChild>
+                <a href="https://globalsumudflotilla.org/" target="_blank" rel="noopener noreferrer">
+                  Learn More About the Flotilla
+                </a>
+              </Button>
             </div>
           </div>
         </div>
@@ -186,7 +300,7 @@ export default function AboutSumudNusantaraPage() {
             <div className="p-8">
               <div className="aspect-video bg-gradient-to-br from-slate-600 to-slate-700 dark:from-slate-600 dark:to-slate-700 rounded-lg flex items-center justify-center relative overflow-hidden">
                 <Image
-                  src="/mainpageSumud.png"
+                  src="/aboutTracker.png"
                   alt="SiagaX Sumud Nusantara Dashboard"
                   fill
                   className="object-cover"
@@ -212,17 +326,35 @@ export default function AboutSumudNusantaraPage() {
                 Access Live Tracker
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-emerald-800 px-8 py-4 text-lg font-semibold">
-              Request Demo
-            </Button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-200 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-slate-400">&copy; 2025 MAPIM Strategic Centre. All rights reserved. v2.0</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <p className="text-slate-400">&copy; 2025 MAPIM Strategic Centre. All rights reserved. v{packageJson.version}</p>
+          </div>
+          
+          {/* Forensic Architecture Credit */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 border-t border-slate-700">
+            <span className="text-slate-500 text-sm">Vessel tracking data provided by:</span>
+            <a 
+              href="https://forensic-architecture.org" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity duration-200"
+            >
+              <Image 
+                src="/forensic-architecture-logo.svg" 
+                alt="Forensic Architecture" 
+                width={90}
+                height={37}
+                className="h-6 w-auto"
+              />
+            </a>
+          </div>
         </div>
       </footer>
     </div>

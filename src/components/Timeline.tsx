@@ -219,9 +219,7 @@ export default function Timeline({
               <div className="absolute inset-0 flex">
                 {Array.from({ length: 10 }, (_, i) => (
                   <div key={i} className="flex-1 border-r border-slate-700 relative">
-                    <div className="absolute top-0.5 left-0.5 text-xs text-slate-500 hidden sm:block">
-                      {i === 0 ? 'Start' : i === 9 ? 'End' : ''}
-                    </div>
+                    
                   </div>
                 ))}
               </div>

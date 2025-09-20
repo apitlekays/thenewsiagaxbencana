@@ -1,6 +1,47 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Leaflet popup styling overrides */
+.leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.leaflet-popup-tip {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.leaflet-popup-close-button {
+  color: #ef4444 !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  padding: 4px !important;
+  line-height: 1 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #dc2626 !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
