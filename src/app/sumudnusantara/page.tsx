@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic';
 
-// Dynamically import the map component to avoid SSR issues
-const VesselTrackerMap = dynamic(() => import('@/components/VesselTrackerMap'), {
+// Dynamically import the decoupled map component to avoid SSR issues
+const VesselTrackerMapDecoupled = dynamic(() => import('@/components/VesselTrackerMapDecoupled'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-screen bg-slate-900 flex items-center justify-center">
@@ -16,5 +16,5 @@ const VesselTrackerMap = dynamic(() => import('@/components/VesselTrackerMap'), 
 });
 
 export default function SumudNusantaraPage() {
-  return <VesselTrackerMap />;
+  return <VesselTrackerMapDecoupled />;
 }

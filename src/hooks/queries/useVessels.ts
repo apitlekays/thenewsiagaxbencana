@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import createClient from '@/lib/supabase/client';
 
 export interface Vessel {
@@ -100,30 +100,30 @@ export function useVesselPositions(vesselId?: number) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    const fetchPositions = async () => {
-      try {
-        setLoading(true);
-        let query = supabase
-          .from('vessel_positions')
-          .select('*')
-          .order('timestamp_utc', { ascending: false });
+  const fetchPositions = useCallback(async () => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('vessel_positions')
+        .select('*')
+        .order('timestamp_utc', { ascending: false });
 
-        if (vesselId) {
-          query = query.eq('gsf_vessel_id', vesselId);
-        }
-
-        const { data, error } = await query.limit(50000); // Increased limit
-
-        if (error) throw error;
-        setPositions(data || []);
-      } catch (err) {
-        setError(err as Error);
-      } finally {
-        setLoading(false);
+      if (vesselId) {
+        query = query.eq('gsf_vessel_id', vesselId);
       }
-    };
 
+      const { data, error } = await query.limit(50000); // Increased limit
+
+      if (error) throw error;
+      setPositions(data || []);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, [vesselId]);
+
+  useEffect(() => {
     fetchPositions();
 
     // Set up realtime subscription
@@ -146,7 +146,7 @@ export function useVesselPositions(vesselId?: number) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [vesselId]);
+  }, [vesselId, fetchPositions]);
 
   return {
     positions,

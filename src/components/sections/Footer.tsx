@@ -53,7 +53,7 @@ export default function Footer() {
         <div className="border-t border-slate-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-slate-400">&copy; 2025 MAPIM Strategic Centre. All rights reserved.</p>
           <div className="flex items-center space-x-4 mt-4 md:mt-0">
-            <span className="text-slate-400">v2.0</span>
+            <span className="text-slate-400">v2.1</span>
             <div className="flex space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="text-slate-400 text-sm">All systems operational</span>
