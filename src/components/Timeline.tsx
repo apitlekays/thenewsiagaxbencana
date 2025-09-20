@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
+import packageJson from '../../package.json';
 
 // Timeline data types
 export interface TimelineFrame {
@@ -241,7 +242,7 @@ export default function Timeline({
         </div>
 
         {/* Current Time Display */}
-        <div className="text-center">
+        <div className="text-center sm:text-center text-left">
           <div className="text-xs text-slate-400">
             Frame: {Math.floor(currentTime)} / {timelineData.length - 1}
           </div>
@@ -259,6 +260,11 @@ export default function Timeline({
               })}
             </div>
           )}
+        </div>
+        
+        {/* Version Number */}
+        <div className="absolute bottom-2 right-2 text-xs text-slate-500">
+          v.{packageJson.version}
         </div>
       </div>
     </div>

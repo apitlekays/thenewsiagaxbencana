@@ -626,9 +626,14 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
 
       {/* Donate Button */}
       <div className="absolute bottom-[260px] left-4 z-[1000] w-[120px]">
-        <button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-lg shadow-lg transition-colors text-sm">
+        <a 
+          href="https://mapim.berisalam.net/form/kecemasanpalestin"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-lg shadow-lg transition-colors text-sm block text-center"
+        >
           Donate
-        </button>
+        </a>
       </div>
 
       {/* Animated Legend */}
