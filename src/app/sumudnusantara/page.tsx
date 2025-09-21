@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import { Metadata, Viewport } from 'next';
 import SumudNusantaraClient from './SumudNusantaraClient';
 
 export const metadata: Metadata = {
@@ -11,6 +11,23 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://magic.mapim.dev'),
   alternates: {
     canonical: '/sumudnusantara',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: [
+      { url: '/icons/apple-touch-icon-180x180.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-167x167.png', sizes: '167x167', type: 'image/png' },
+      { url: '/icons/apple-touch-icon-152x152.png', sizes: '152x152', type: 'image/png' }
+    ],
+    other: [
+      { rel: 'apple-touch-icon-precomposed', url: '/icons/apple-touch-icon-180x180.png' }
+    ]
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Sumud Tracker',
   },
   openGraph: {
     title: 'Sumud Nusantara Flotilla Tracker - Real-time Vessel Tracking',
@@ -45,6 +62,14 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#dc2626',
 };
 
 export default function SumudNusantaraPage() {

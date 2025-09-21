@@ -649,13 +649,13 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       {/* Back Button */}
       <Link 
         href="/" 
-        className="absolute top-4 left-4 z-[1000] bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg p-3 shadow-lg border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-2"
+        className="absolute top-16 lg:top-4 left-4 z-[1000] bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 rounded-lg p-3 shadow-lg border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-2"
       >
         <ArrowLeft className="w-4 h-4" />
       </Link>
 
       {/* Top Right Button Group */}
-      <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+      <div className="absolute top-16 lg:top-4 right-4 z-[1000] flex items-center gap-2">
         {/* Fullscreen Button - Desktop Only */}
         <button
           onClick={handleFullscreenToggle}
