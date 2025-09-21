@@ -23,7 +23,7 @@ export const metadata: Metadata = {
       { rel: 'apple-touch-icon-precomposed', url: '/icons/apple-touch-icon-180x180.png' }
     ]
   },
-  manifest: '/manifest.json',
+  manifest: '/sumudnusantara-manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -73,5 +73,15 @@ export const viewport: Viewport = {
 };
 
 export default function SumudNusantaraPage() {
-  return <SumudNusantaraClient />;
+  return (
+    <>
+      {/* Additional iOS PWA meta tags for full-screen experience */}
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Sumud Tracker" />
+      </head>
+      <SumudNusantaraClient />
+    </>
+  );
 }

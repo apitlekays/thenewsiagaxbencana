@@ -1,8 +1,8 @@
 {
-  "name": "MAPIM Strategic Centre - MAGIC Digital Humanitarian",
-  "short_name": "MAGIC",
-  "description": "MAPIM Strategic Centre (MAGIC) Digital Humanitarian Initiatives - Vessel Tracking & Disaster Preparedness",
-  "start_url": "/",
+  "name": "Sumud Nusantara Flotilla Tracker",
+  "short_name": "Sumud Tracker",
+  "description": "Real-time tracking of the Global Sumud Flotilla humanitarian mission. Monitor vessels sailing to break the illegal siege on Gaza.",
+  "start_url": "/sumudnusantara",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
@@ -23,6 +23,6 @@
   ],
   "categories": ["navigation", "utilities", "productivity"],
   "lang": "en",
-  "scope": "/",
-  "id": "magic-digital-humanitarian"
+  "scope": "/sumudnusantara",
+  "id": "sumud-nusantara-tracker"
 }

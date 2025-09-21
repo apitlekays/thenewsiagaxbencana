@@ -44,6 +44,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Android PWA full-screen support */
+@media (display-mode: standalone) {
+  body {
+    /* Extend content under status bar on Android */
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  /* Ensure full viewport height */
+  html, body {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
