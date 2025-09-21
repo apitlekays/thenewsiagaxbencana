@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   description: "MAPIM Strategic Centre (MAGIC) is dedicated to driving digital transformation and innovation across Malaysia through cutting-edge technology initiatives.",
   keywords: "MAPIM, Strategic Centre, MAGIC, Digital Humanitarian, Malaysia, Technology, Innovation, Disaster Preparedness, National Security",
   authors: [{ name: "MAPIM Strategic Centre" }],
+  icons: {
+    icon: '/favicon.ico',
+  },
   openGraph: {
     title: "MAPIM Strategic Centre - MAGIC Digital Humanitarian Initiatives",
     description: "Advancing Malaysia's Digital Humanitarian Future",

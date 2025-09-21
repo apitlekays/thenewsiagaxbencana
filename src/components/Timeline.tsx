@@ -265,6 +265,9 @@ export default function Timeline({
           v.{packageJson.version}
         </div>
       </div>
+      <div className="z-[1000] text-slate-400 px-3 py-1.5 text-xs text-center">
+        Developed by <a href="https://www.mapim.org" className="text-blue-500">MAPIM MALAYSIA</a>
+      </div>
     </div>
   );
 }
