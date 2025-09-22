@@ -24,6 +24,7 @@ const ORIGIN_COLORS: Record<string, string> = {
   'tunis': '#10b981',        // Green
   'greece': '#f59e0b',       // Orange
   'libya': '#ef4444',        // Red
+  'malta': '#06b6d4',        // Cyan
   'unknown': '#6b7280',      // Gray for null/unknown origins
 };
 

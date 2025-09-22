@@ -29,6 +29,11 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Sumud Tracker',
   },
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+    'apple-mobile-web-app-title': 'Sumud Nusantara Tracker',
+  },
   openGraph: {
     title: 'Sumud Nusantara Flotilla Tracker - Real-time Vessel Tracking',
     description: 'Real-time tracking of the Global Sumud Flotilla humanitarian mission. Monitor vessels sailing to break the illegal siege on Gaza.',
@@ -75,12 +80,6 @@ export const viewport: Viewport = {
 export default function SumudNusantaraPage() {
   return (
     <>
-      {/* Additional iOS PWA meta tags for full-screen experience */}
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Sumud Tracker" />
-      </head>
       <SumudNusantaraClient />
     </>
   );

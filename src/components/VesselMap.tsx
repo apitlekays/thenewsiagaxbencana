@@ -1,7 +1,7 @@
 "use client";
 
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { ArrowLeft, Ship, SquareArrowOutUpRight, LocateFixed, Info, Scale, Maximize, Minimize, Share2 } from 'lucide-react';
+import { ArrowLeft, Ship, SquareArrowOutUpRight, LocateFixed, Info, Scale, Maximize, Minimize, Share2, Eye } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { useVessels, useVesselPositions } from '@/hooks/queries/useVessels';
@@ -24,6 +24,7 @@ const ORIGIN_COLORS: Record<string, string> = {
   'tunis': '#10b981',        // Green
   'greece': '#f59e0b',       // Orange
   'libya': '#ef4444',        // Red
+  'malta': '#06b6d4',        // Cyan
   'unknown': '#6b7280',      // Gray for null/unknown origins
 };
 
@@ -1331,7 +1332,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </MapContainer>
 
       {/* Donate Button */}
-      <div className="absolute bottom-[260px] left-4 z-[1000] w-[120px]">
+      <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a 
           href="https://mapim.berisalam.net/form/kecemasanpalestin"
           target="_blank"
@@ -1415,10 +1416,22 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         }`}>
             <div className="p-4 h-full flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                  Active Vessels ({vessels.length})
-                </h2>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                    Active Vessels ({vessels.length})
+                  </h2>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Scale className="w-3 h-3 text-green-600 dark:text-green-400" />
+                      <span className="text-green-700 dark:text-green-300">Legal Support Vessel</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                      <span className="text-blue-700 dark:text-blue-300">Observer Vessel</span>
+                    </div>
+                  </div>
+                </div>
                 <button
                   onClick={() => {
                     analytics.trackDrawerClose();
@@ -1428,7 +1441,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                 >
                   <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 </button>
-    </div>
+              </div>
 
               {/* Vessel List */}
               <div className="flex-1 overflow-y-auto space-y-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -1471,8 +1484,17 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
                                 {vessel.name || `Vessel ${vessel.id}`}
+                                {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen') && (
+                                  <Eye 
+                                    className="w-4 h-4 flex-shrink-0" 
+                                    style={{ color: getOriginColor(vessel.origin || null) }}
+                                  />
+                                )}
                                 {vessel.name === 'Shireen' && (
-                                  <Scale className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                  <Scale 
+                                    className="w-4 h-4 flex-shrink-0" 
+                                    style={{ color: getOriginColor(vessel.origin || null) }}
+                                  />
                                 )}
                               </div>
                             </div>
