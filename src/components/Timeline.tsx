@@ -460,7 +460,7 @@ export default function Timeline({
         </div>
 
         {/* Current Time Display */}
-        <div className="text-center sm:text-center">
+        <div className="text-left sm:text-center">
           <div className="text-xs text-slate-400">
             Frame: {Math.floor(currentTime)} / {timelineData.length - 1}
           </div>
