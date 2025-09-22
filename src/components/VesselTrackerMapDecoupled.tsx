@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useVessels } from '@/hooks/queries/useVessels';
 import { useGroupedVesselPositions } from '@/hooks/useGroupedVesselPositions';
 import { useAnimationService } from '@/hooks/useAnimationService';
+import { useIncidentData } from '@/hooks/useIncidentData';
 import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
 import Timeline from '@/components/Timeline';
@@ -12,6 +13,7 @@ export default function VesselTrackerMap() {
   const { loading: vesselsLoading, error: vesselsError } = useVessels();
   const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions();
   const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService();
+  const { incidents, error: incidentsError } = useIncidentData();
   
   // Use the same Supabase client as the hooks
   const supabase = createClient();
@@ -28,6 +30,13 @@ export default function VesselTrackerMap() {
   useEffect(() => {
     loadTimelineData();
   }, [loadTimelineData]);
+
+  // Log incident data updates
+  useEffect(() => {
+    if (incidentsError) {
+      console.error('❌ Incident data error:', incidentsError);
+    }
+  }, [incidentsError]);
 
   const loading = vesselsLoading || positionsLoading;
   const error = vesselsError || (positionsError ? new Error(positionsError) : null);
@@ -66,7 +75,6 @@ export default function VesselTrackerMap() {
             }));
             
             setAnimatedVessels(latestVesselData);
-            console.log('🔄 Timeline end: Updated to latest vessel positions');
           } else {
             // Fallback to timeline frame data
             setAnimatedVessels(frame.vessels);
@@ -96,8 +104,7 @@ export default function VesselTrackerMap() {
   }, []);
 
   // Handle vessel click
-  const handleVesselClick = useCallback((vessel: { id: number; name: string; origin?: string | null }) => {
-    //console.log('Vessel clicked:', vessel);
+  const handleVesselClick = useCallback(() => {
     // Could add vessel details modal or other interactions here
   }, []);
 
@@ -146,6 +153,7 @@ export default function VesselTrackerMap() {
       <Timeline
         timelineData={timelineData}
         timelineRange={timelineRange}
+        incidents={incidents}
         isVisible={true}
         onFrameUpdate={handleFrameUpdate}
         onPlayStateChange={handlePlayStateChange}
@@ -157,6 +165,21 @@ export default function VesselTrackerMap() {
           Loading Timeline...
         </div>
       )}
+      
+      {/* Incident Loading Indicator 
+      {incidentsLoading && (
+        <div className="absolute bottom-4 left-32 z-[1000] bg-red-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm">
+          Loading Incidents...
+        </div>
+      )}
+      
+      {/* Incident Data Status
+      {!incidentsLoading && incidents.length > 0 && lastFetch && (
+        <div className="absolute bottom-4 left-32 z-[1000] bg-green-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm">
+          {incidents.length} incidents loaded
+        </div>
+      )}
+      */}
     </div>
   );
 }
