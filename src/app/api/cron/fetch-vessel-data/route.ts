@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -67,7 +68,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 }
 
 // Helper function to get the last timeline frame timestamp
-async function getLastTimelineFrame(supabase: any): Promise<string | null> {
+async function getLastTimelineFrame(supabase: ReturnType<typeof createClient>): Promise<string | null> {
   const { data, error } = await supabase
     .from('timeline_frames')
     .select('frame_timestamp')
@@ -79,11 +80,11 @@ async function getLastTimelineFrame(supabase: any): Promise<string | null> {
     return null;
   }
 
-  return data && data.length > 0 ? data[0].frame_timestamp : null;
+  return data && data.length > 0 ? (data[0] as { frame_timestamp: string }).frame_timestamp : null;
 }
 
 // Helper function to get the last frame index
-async function getLastFrameIndex(supabase: any): Promise<number> {
+async function getLastFrameIndex(supabase: ReturnType<typeof createClient>): Promise<number> {
   const { data, error } = await supabase
     .from('timeline_frames')
     .select('frame_index')
@@ -95,11 +96,11 @@ async function getLastFrameIndex(supabase: any): Promise<number> {
     return -1;
   }
 
-  return data && data.length > 0 ? data[0].frame_index : -1;
+  return data && data.length > 0 ? (data[0] as { frame_index: number }).frame_index : -1;
 }
 
 // Helper function to get the last vessel positions from existing timeline
-async function getLastVesselPositions(supabase: any): Promise<{ [key: string]: { name: string; gsf_id: number; lat: number; lng: number; origin: string; course: number; } }> {
+async function getLastVesselPositions(supabase: ReturnType<typeof createClient>): Promise<{ [key: string]: { name: string; gsf_id: number; lat: number; lng: number; origin: string; course: number; } }> {
   const { data, error } = await supabase
     .from('timeline_frames')
     .select('vessels_data')
@@ -110,10 +111,10 @@ async function getLastVesselPositions(supabase: any): Promise<{ [key: string]: {
     return {};
   }
 
-  const lastFrameVessels = data[0].vessels_data;
+  const lastFrameVessels = (data[0] as { vessels_data: { name: string; gsf_id: number; lat: number; lng: number; origin: string; course: number; }[] }).vessels_data;
   const vesselPositions: { [key: string]: { name: string; gsf_id: number; lat: number; lng: number; origin: string; course: number; } } = {};
 
-  lastFrameVessels.forEach((vessel: any) => {
+  lastFrameVessels.forEach((vessel: { name: string; gsf_id: number; lat: number; lng: number; origin: string; course: number; }) => {
     vesselPositions[vessel.name] = {
       name: vessel.name,
       gsf_id: vessel.gsf_id,
@@ -128,7 +129,7 @@ async function getLastVesselPositions(supabase: any): Promise<{ [key: string]: {
 }
 
 // Main processing logic
-async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
+async function processVesselData(supabase: ReturnType<typeof createClient>, gsfVessels: Vessel[]) {
   console.log('Starting processVesselData...');
 
   // Get existing vessels from database for comparison
@@ -141,7 +142,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
     throw new Error(`Failed to fetch existing vessels: ${existingError.message}`);
   }
 
-  const existingVesselIds = existingVessels?.map(v => v.gsf_id) || [];
+  const existingVesselIds = existingVessels?.map((v: { gsf_id: number }) => v.gsf_id) || [];
   console.log(`📋 Found ${existingVesselIds.length} existing vessels in database`);
 
   const results: ProcessingResult[] = [];
@@ -156,7 +157,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
     const batchPromises = batch.map(async (vessel): Promise<ProcessingResult> => {
       try {
         // Upsert vessel data
-        const { data: vesselData, error: vesselError } = await supabase
+        const { data: vesselData, error: vesselError } = await (supabase as any)
           .from('vessels')
           .upsert({
             gsf_id: vessel.id,
@@ -233,7 +234,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
             for (let j = 0; j < positionsToInsert.length; j += POSITION_BATCH_SIZE) {
               const positionBatch = positionsToInsert.slice(j, j + POSITION_BATCH_SIZE);
               
-              const { error: positionError } = await supabase
+              const { error: positionError } = await (supabase as any)
                 .from('vessel_positions')
                 .upsert(positionBatch, {
                   onConflict: 'gsf_vessel_id,timestamp_utc',
@@ -290,7 +291,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
 
   if (vesselsToDeactivate.length > 0) {
     console.log(`👻 Deactivating ${vesselsToDeactivate.length} vessels not found in latest GSF data...`);
-    const { error: deactivateError } = await supabase
+    const { error: deactivateError } = await (supabase as any)
       .from('vessels')
       .update({ status: 'inactive', updated_at: new Date().toISOString() })
       .in('gsf_id', vesselsToDeactivate);
@@ -313,7 +314,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
 }
 
 // Incremental timeline frame generation - Only process new data
-async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vessel[]) {
+async function generateTimelineFramesFromGSFData(supabase: ReturnType<typeof createClient>, gsfVessels: Vessel[]) {
   console.log('🔄 Generating timeline frames incrementally...');
 
   // Get the last processed timeline frame timestamp
@@ -453,11 +454,11 @@ async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vess
   console.log(`🎬 Generated ${timelineFrames.length} new timeline frames`);
 
   // Process each frame with vessel persistence logic
-  const framesToInsert = [];
+  const framesToInsert: any[] = [];
   let currentFrameIndex = lastFrameIndex + 1;
 
   for (const frameTimestamp of timelineFrames) {
-    const vesselsAtTime = [];
+    const vesselsAtTime: any[] = [];
 
     Object.entries(vesselPositions).forEach(([vesselName, positions]) => {
       if (positions.length === 0) return;
@@ -501,8 +502,16 @@ async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vess
           };
 
           // Update last known position for persistence
-          lastVesselPositions[vesselName] = vesselData;
-          vesselsAtTime.push(vesselData);
+          lastVesselPositions[vesselName] = {
+            ...vesselData,
+            origin: vesselData.origin || 'Unknown',
+            course: vesselData.course || 0
+          };
+          vesselsAtTime.push({
+            ...vesselData,
+            origin: vesselData.origin || 'Unknown',
+            course: vesselData.course || 0
+          });
         }
       } else if (lastVesselPositions[vesselName]) {
         // Vessel has been seen before but no data for this frame - persist last known position
@@ -534,7 +543,7 @@ async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vess
   if (framesToInsert.length > 0) {
     console.log('💾 Inserting new timeline frames...');
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await (supabase as any)
       .from('timeline_frames')
       .insert(framesToInsert);
 
@@ -549,7 +558,7 @@ async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vess
 }
 
 // Full timeline generation for first run (fallback)
-async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
+async function generateFullTimelineFrames(supabase: ReturnType<typeof createClient>, gsfVessels: Vessel[]) {
   console.log('🔄 Generating full timeline frames (first run)...');
 
   // Group positions by vessel from fresh GSF data
@@ -646,7 +655,7 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
   console.log(`🎬 Generated ${timelineFrames.length} timeline frames from GSF data (from ${sortedTimestamps.length} total timestamps)`);
 
   // Process each frame with vessel persistence logic
-  const framesToInsert = [];
+  const framesToInsert: any[] = [];
   const vesselLastKnownPositions: Record<string, {
     name: string;
     gsf_id: number;
@@ -743,7 +752,7 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
   // Clear existing timeline frames and insert new ones
   if (framesToInsert.length > 0) {
     console.log('🗑️ Clearing existing timeline frames...');
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await (supabase as any)
       .from('timeline_frames')
       .delete()
       .neq('id', 0); // Delete all records
@@ -754,7 +763,7 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
 
     console.log('💾 Inserting new timeline frames from GSF data...');
      
-    const { error: insertError } = await supabase
+    const { error: insertError } = await (supabase as any)
       .from('timeline_frames')
       .insert(framesToInsert);
 
@@ -821,7 +830,7 @@ export async function GET() {
     console.log(`📊 Fetched ${gsfVessels.length} vessels from GSF API`);
 
     // Process vessel data and positions
-    const { vesselsProcessed: processed, positionsProcessed: posProcessed, errors: procErrors } = await processVesselData(supabase, gsfVessels);
+    const { vesselsProcessed: processed, positionsProcessed: posProcessed, errors: procErrors } = await processVesselData(supabase as any, gsfVessels);
     vesselsProcessed = processed;
     positionsProcessed = posProcessed;
     errors.push(...procErrors);
@@ -831,7 +840,7 @@ export async function GET() {
     const timelineStartTime = Date.now();
     
     try {
-      await generateTimelineFramesFromGSFData(supabase, gsfVessels);
+      await generateTimelineFramesFromGSFData(supabase as any, gsfVessels);
       const timelineProcessingTime = Date.now() - timelineStartTime;
       console.log(`✅ Timeline frames generated in ${timelineProcessingTime}ms`);
     } catch (timelineError) {

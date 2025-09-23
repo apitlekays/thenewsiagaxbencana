@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const edgeFunctionUrl = process.env.SUPABASE_EDGE_FUNCTION_URL; // This should be the URL of your deployed Edge Function
     const edgeFunctionAuthToken = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use service role key for server-to-server communication
