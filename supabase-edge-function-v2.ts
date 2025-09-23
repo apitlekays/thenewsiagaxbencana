@@ -1,14 +1,19 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+};
+
+// Configuration - Exact same as the API route
 const GSF_API_URL = 'https://data.forensic-architecture.org/items/freedom_flotilla_vessels?limit=1000';
 const BATCH_SIZE = 5; // Process 5 vessels in parallel
 const POSITION_BATCH_SIZE = 100; // Insert 100 positions per batch
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
-// Types
+// Types - Exact same as the API route
 interface Vessel {
   id: number;
   name: string;
@@ -45,7 +50,7 @@ interface ProcessingResult {
   error?: string;
 }
 
-// Utility functions
+// Utility functions - Exact same as the API route
 async function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -127,7 +132,7 @@ async function getLastVesselPositions(supabase: any): Promise<{ [key: string]: {
   return vesselPositions;
 }
 
-// Main processing logic
+// Main processing logic - Exact same as the API route
 async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
   console.log('Starting processVesselData...');
 
@@ -141,7 +146,7 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
     throw new Error(`Failed to fetch existing vessels: ${existingError.message}`);
   }
 
-  const existingVesselIds = existingVessels?.map(v => v.gsf_id) || [];
+  const existingVesselIds = existingVessels?.map((v: { gsf_id: any; }) => v.gsf_id) || [];
   console.log(`📋 Found ${existingVesselIds.length} existing vessels in database`);
 
   const results: ProcessingResult[] = [];
@@ -229,10 +234,9 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
               });
             }
 
-            // Insert positions in batches using upsert
+            // Batch insert positions using upsert
             for (let j = 0; j < positionsToInsert.length; j += POSITION_BATCH_SIZE) {
               const positionBatch = positionsToInsert.slice(j, j + POSITION_BATCH_SIZE);
-              
               const { error: positionError } = await supabase
                 .from('vessel_positions')
                 .upsert(positionBatch, {
@@ -241,47 +245,29 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
                 });
 
               if (positionError) {
-                console.error(`❌ Error storing position batch for vessel ${vessel.id}:`, positionError);
-                return { success: false, error: `Position batch ${vessel.id}: ${positionError.message}` };
+                console.error(`❌ Error inserting position batch for vessel ${vessel.id}:`, positionError);
+                throw new Error(`Failed to insert position batch: ${positionError.message}`);
               }
+              positionsProcessed += positionBatch.length;
             }
+            vesselsProcessed++;
+            return { success: true, vesselId: vessel.id, positionCount: positionsToInsert.length };
 
-            return { 
-              success: true, 
-              vesselId: vessel.id,
-              positionCount: positionsToInsert.length 
-            };
-
-          } catch (parseError) {
-            console.error(`❌ Error parsing positions for vessel ${vessel.id}:`, parseError);
-            return { success: false, error: `Parse error ${vessel.id}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}` };
+          } catch (posError) {
+            return { success: false, error: `Vessel ${vessel.id} positions: ${posError instanceof Error ? posError.message : String(posError)}` };
           }
+        } else {
+          vesselsProcessed++;
+          return { success: true, vesselId: vessel.id, positionCount: 0 };
         }
-
-        return { 
-          success: true, 
-          vesselId: vessel.id,
-          positionCount: 0 
-        };
-
-      } catch (error) {
-        console.error(`❌ Error processing vessel ${vessel.id}:`, error);
-        return { success: false, error: `Vessel ${vessel.id}: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      } catch (err) {
+        return { success: false, error: `Vessel ${vessel.id}: ${err instanceof Error ? err.message : String(err)}` };
       }
     });
 
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults);
-    
-    // Update counters
-    batchResults.forEach(result => {
-      if (result.error) {
-        errors.push(result.error);
-      } else {
-        vesselsProcessed++;
-        positionsProcessed += result.positionCount || 0;
-      }
-    });
+    batchResults.filter(r => !r.success).forEach(r => errors.push(r.error || 'Unknown error'));
   }
 
   // Deactivate vessels not present in the latest GSF fetch
@@ -302,18 +288,15 @@ async function processVesselData(supabase: any, gsfVessels: Vessel[]) {
     }
   }
 
-  const processingTime = Date.now() - Date.now();
-  console.log(`✅ Processed ${vesselsProcessed} vessels with ${positionsProcessed} positions in ${processingTime}ms`);
-  
+  console.log(`✅ Finished processing ${vesselsProcessed} vessels and ${positionsProcessed} positions.`);
   if (errors.length > 0) {
-    console.log(`⚠️ ${errors.length} errors occurred:`, errors.slice(0, 5));
+    console.error(`Encountered ${errors.length} errors during processing:`, errors);
   }
-
   return { vesselsProcessed, positionsProcessed, errors };
 }
 
 // Incremental timeline frame generation - Only process new data
-async function generateTimelineFramesFromGSFData(supabase: any, gsfVessels: Vessel[]) {
+async function generateTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
   console.log('🔄 Generating timeline frames incrementally...');
 
   // Get the last processed timeline frame timestamp
@@ -659,33 +642,25 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
   
   for (let i = 0; i < timelineFrames.length; i++) {
     const frameTimestamp = timelineFrames[i];
-    const vesselsAtTime: Array<{
-      name: string;
-      gsf_id: number;
-      lat: number;
-      lng: number;
-      origin: string | null;
-      course: number | null;
-    }> = [];
+    const vesselsAtTime = [];
 
-    // For each vessel, find the closest position to this frame timestamp
     Object.entries(vesselPositions).forEach(([vesselName, positions]) => {
       if (positions.length === 0) return;
 
       // Find exact position at this timestamp first
       let exactPosition = positions.find(pos => pos.timestamp === frameTimestamp);
-      
+
       if (!exactPosition) {
         // If no exact match, find the closest position within a reasonable time window
         const frameTime = new Date(frameTimestamp).getTime();
         const timeWindow = 30 * 60 * 1000; // 30 minutes window
-        
+
         // Find positions within the time window
         const nearbyPositions = positions.filter(pos => {
           const posTime = new Date(pos.timestamp).getTime();
           return Math.abs(posTime - frameTime) <= timeWindow;
         });
-        
+
         if (nearbyPositions.length > 0) {
           // Find the closest position by time
           exactPosition = nearbyPositions.reduce((closest, current) => {
@@ -695,11 +670,11 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
           });
         }
       }
-      
+
       if (exactPosition) {
         // Find the vessel's GSF ID from the GSF data
         const vessel = gsfVessels.find(v => v.name === vesselName);
-        
+
         if (vessel) {
           const vesselData = {
             name: vesselName,
@@ -710,7 +685,7 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
             course: exactPosition.course,
             firstSeen: !vesselLastKnownPositions[vesselName]
           };
-          
+
           // Update last known position
           vesselLastKnownPositions[vesselName] = vesselData;
           vesselsAtTime.push(vesselData);
@@ -766,20 +741,24 @@ async function generateFullTimelineFrames(supabase: any, gsfVessels: Vessel[]) {
   }
 }
 
-export async function GET() {
-  const startTime = Date.now();
-  let vesselsProcessed = 0;
-  let positionsProcessed = 0;
-  const errors: string[] = [];
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
     console.log('🚢 Starting vessel data fetch cron job...');
 
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabaseUrl = Deno.env.get('NEXT_PUBLIC_SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const gsfApiToken = Deno.env.get('GSF_API_TOKEN');
+
+    if (!supabaseUrl || !supabaseServiceKey || !gsfApiToken) {
+      throw new Error('Missing required environment variables');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     console.log('✅ Supabase client initialized');
 
     // Health check: Test GSF API availability
@@ -787,7 +766,7 @@ export async function GET() {
     try {
       const healthResponse = await fetch(GSF_API_URL, {
         headers: {
-          'Authorization': `Bearer ${process.env.GSF_API_TOKEN}`,
+          'Authorization': `Bearer ${gsfApiToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -806,7 +785,7 @@ export async function GET() {
     console.log('📡 Fetching vessel data from GSF API...');
     const vesselsResponse = await fetchWithRetry(GSF_API_URL, {
       headers: {
-        'Authorization': `Bearer ${process.env.GSF_API_TOKEN}`,
+        'Authorization': `Bearer ${gsfApiToken}`,
         'Content-Type': 'application/json'
       }
     });
@@ -821,58 +800,32 @@ export async function GET() {
     console.log(`📊 Fetched ${gsfVessels.length} vessels from GSF API`);
 
     // Process vessel data and positions
-    const { vesselsProcessed: processed, positionsProcessed: posProcessed, errors: procErrors } = await processVesselData(supabase, gsfVessels);
-    vesselsProcessed = processed;
-    positionsProcessed = posProcessed;
-    errors.push(...procErrors);
+    const { vesselsProcessed, positionsProcessed, errors } = await processVesselData(supabase, gsfVessels);
 
-    // Generate timeline frames for animation playback using fresh GSF data
-    console.log('🎬 Starting timeline frame generation...');
-    const timelineStartTime = Date.now();
-    
-    try {
-      await generateTimelineFramesFromGSFData(supabase, gsfVessels);
-      const timelineProcessingTime = Date.now() - timelineStartTime;
-      console.log(`✅ Timeline frames generated in ${timelineProcessingTime}ms`);
-    } catch (timelineError) {
-      console.error('❌ Timeline generation error:', timelineError);
-      errors.push(`Timeline generation: ${timelineError instanceof Error ? timelineError.message : 'Unknown error'}`);
-    }
+    // Generate and insert timeline frames incrementally
+    await generateTimelineFrames(supabase, gsfVessels);
 
-    // Get latest timestamp for monitoring
-    const latestTimestamp = gsfVessels.reduce((latest, vessel) => {
-      return vessel.timestamp_utc > latest ? vessel.timestamp_utc : latest;
-    }, '');
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Vessel data fetch completed successfully',
-      summary: {
-        vesselsProcessed,
-        positionsProcessed,
-        errors: errors.length,
-        processingTimeMs: Date.now() - startTime,
-        latestTimestamp,
-        timestamp: new Date().toISOString()
-      },
-      errors: errors.slice(0, 10) // Limit error details
+    const status = errors.length > 0 ? 500 : 200;
+    const message = errors.length > 0 ? `Completed with ${errors.length} errors.` : 'Successfully processed vessel data.';
+
+    return new Response(JSON.stringify({
+      message,
+      vesselsProcessed,
+      positionsProcessed,
+      errors
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: status,
     });
 
   } catch (error) {
-    const processingTime = Date.now() - startTime;
-    console.error('❌ Cron job error:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      summary: {
-        vesselsProcessed,
-        positionsProcessed,
-        errors: errors.length,
-        processingTimeMs: processingTime,
-        timestamp: new Date().toISOString()
-      },
-      errors: errors.slice(0, 10)
-    }, { status: 500 });
+    console.error('Unhandled error during cron job:', error);
+    return new Response(JSON.stringify({
+      message: `Error processing vessel data: ${error instanceof Error ? error.message : String(error)}`,
+      error: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
   }
-}
+});

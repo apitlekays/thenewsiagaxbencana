@@ -16,6 +16,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Supabase Service Role Key (server-side only - keep secret!)
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Supabase Edge Function URL (for server-to-server calls)
+SUPABASE_EDGE_FUNCTION_URL=https://your-project-ref.supabase.co/functions/v1/fetch-vessel-data-v2
 ```
 
 ### GSF API Configuration
