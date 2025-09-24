@@ -1411,7 +1411,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       {/* Donate Button */}
       <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a 
-          href="https://mapim.berisalam.net/form/kecemasanpalestin"
+          href="https://donate.infakpalestin.com/order/form/sumudnusantara"
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => analytics.trackDonationClick('map_tracker')}
