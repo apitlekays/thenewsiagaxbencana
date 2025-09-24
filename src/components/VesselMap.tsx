@@ -6,6 +6,8 @@ import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { useVessels, useVesselPositions } from '@/hooks/queries/useVessels';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { useAttackStatus } from '@/hooks/useAttackStatus';
+import { createPulsingVesselIcon } from './PulsingVesselIcon';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -416,6 +418,7 @@ interface VesselMapProps {
 export default function VesselMap({ onVesselClick, showPathways = true, vesselPositions = {}, animatedVessels, timelineData, currentTimelineFrame }: VesselMapProps) {
   const { vessels, loading: vesselsLoading, error: vesselsError } = useVessels();
   const analytics = useAnalytics();
+  const { attackStatuses } = useAttackStatus();
   const [latestDataTimestamp, setLatestDataTimestamp] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [mapRef, setMapRef] = useState<L.Map | null>(null);
@@ -1048,17 +1051,89 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           ))
         ) : (
           // Show static vessels
-          vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => (
-            <React.Fragment key={vessel.id}>
-              {/* Vessel Marker */}
-              <Marker
-                position={[parseFloat(vessel.latitude!.toString()), parseFloat(vessel.longitude!.toString())]}
-                icon={selectedVessel?.id === vessel.id ? createSelectedVesselIcon(vessel.origin || null) : createVesselIcon(vessel.origin || null)}
-                zIndexOffset={selectedVessel?.id === vessel.id ? 1000 : 0}
-                eventHandlers={{
-                  click: () => onVesselClick?.(vessel)
-                }}
-              >
+          vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => {
+            const attackStatus = attackStatuses[vessel.name];
+            const vesselIcon = selectedVessel?.id === vessel.id ? createSelectedVesselIcon(vessel.origin || null) : createVesselIcon(vessel.origin || null);
+            
+            
+            return (
+              <React.Fragment key={vessel.id}>
+                {/* Vessel Marker - Use pulsing icon if vessel has attack status */}
+                {attackStatus ? (
+                  <>
+                    <Marker
+                      position={[parseFloat(vessel.latitude!.toString()), parseFloat(vessel.longitude!.toString())]}
+                      icon={createPulsingVesselIcon(
+                        attackStatus === 'repairing' ? 'green' : attackStatus === 'attacked' ? 'red' : 'amber'
+                      )}
+                      zIndexOffset={1000}
+                      eventHandlers={{
+                        click: () => onVesselClick?.(vessel)
+                      }}
+                    >
+                    <Popup>
+                      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-red-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-red-600/20 to-red-500/10 border-b border-red-500/30 px-2 py-1 rounded-t-lg mb-2">
+                          <div className="flex items-center space-x-1">
+                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                            <h3 className="text-red-400 font-mono text-xs font-bold tracking-wider uppercase">
+                              VESSEL ATTACKED
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="space-y-2">
+                          {/* Vessel Name */}
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">IDENTIFICATION</div>
+                            <div className="text-xs font-bold text-white font-mono tracking-wide">{vessel.name}</div>
+                          </div>
+                          
+                          {/* Attack Status */}
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                              <span className="text-red-300 font-mono text-xs uppercase">{attackStatus}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Popup>
+                    </Marker>
+                    
+                    {/* Attack Status Label */}
+                    <div 
+                      className="absolute z-[1001] pointer-events-none"
+                      style={{
+                        left: '50%',
+                        bottom: '100%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: attackStatus === 'repairing' ? '#10b981' : attackStatus === 'attacked' ? '#ef4444' : '#f59e0b',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      {attackStatus}
+                    </div>
+                  </>
+                ) : (
+                  <Marker
+                    position={[parseFloat(vessel.latitude!.toString()), parseFloat(vessel.longitude!.toString())]}
+                    icon={vesselIcon}
+                    zIndexOffset={selectedVessel?.id === vessel.id ? 1000 : 0}
+                    eventHandlers={{
+                      click: () => onVesselClick?.(vessel)
+                    }}
+                  >
               <Popup>
                 <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-green-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
                   {/* Header */}
@@ -1163,7 +1238,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   </div>
                 </div>
               </Popup>
-              </Marker>
+                  </Marker>
+                )}
               
               {/* Course Direction Triangle for Static Vessels */}
               {vessel.course && (
@@ -1174,8 +1250,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   origin={vessel.origin || null}
                 />
               )}
-            </React.Fragment>
-          ))
+              </React.Fragment>
+            );
+          })
         )}
 
         {/* Pulsing Location Markers */}

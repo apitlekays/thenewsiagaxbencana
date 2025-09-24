@@ -8,6 +8,7 @@ import { useIncidentData } from '@/hooks/useIncidentData';
 import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
 import Timeline from '@/components/Timeline';
+import TestPulsingAnimation from '@/components/TestPulsingAnimation';
 
 export default function VesselTrackerMap() {
   const { loading: vesselsLoading, error: vesselsError } = useVessels();
@@ -139,6 +140,9 @@ export default function VesselTrackerMap() {
 
   return (
     <div className="relative w-full h-screen">
+      {/* Test Pulsing Animation */}
+      <TestPulsingAnimation />
+      
       {/* Map Component */}
       <VesselMap 
         onVesselClick={handleVesselClick}
