@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface AttackStatus {
   vessel_name: string;
-  status: 'repairing' | 'attacked' | 'emergency';
+  status: 'attacked' | 'emergency';
 }
 
 export interface AttackStatusData {
@@ -50,7 +50,7 @@ export function useAttackStatus() {
         throw new Error('Invalid CSV format: missing vessel_name or status headers');
       }
 
-      // Parse data rows
+      // Parse data rows (only keep attacked and emergency)
       const newAttackStatuses: AttackStatusData = {};
       
       for (let i = 1; i < lines.length; i++) {
@@ -59,9 +59,9 @@ export function useAttackStatus() {
         if (row.length >= Math.max(vesselNameIndex, statusIndex) + 1) {
           const vesselName = row[vesselNameIndex];
           const status = row[statusIndex].toLowerCase();
-          
-          // Validate status
-          if (status === 'repairing' || status === 'attacked' || status === 'emergency') {
+
+          // Only accept 'attacked' or 'emergency'
+          if (status === 'attacked' || status === 'emergency') {
             newAttackStatuses[vesselName] = status as AttackStatus['status'];
           }
         }

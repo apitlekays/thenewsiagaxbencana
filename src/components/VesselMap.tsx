@@ -1064,7 +1064,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                     <Marker
                       position={[parseFloat(vessel.latitude!.toString()), parseFloat(vessel.longitude!.toString())]}
                       icon={createPulsingVesselIcon(
-                        attackStatus === 'repairing' ? 'green' : attackStatus === 'attacked' ? 'red' : 'amber'
+                        attackStatus === 'attacked' ? 'red' : 'amber'
                       )}
                       zIndexOffset={1000}
                       eventHandlers={{
@@ -1111,7 +1111,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                         left: '50%',
                         bottom: '100%',
                         transform: 'translateX(-50%)',
-                        backgroundColor: attackStatus === 'repairing' ? '#10b981' : attackStatus === 'attacked' ? '#ef4444' : '#f59e0b',
+                        backgroundColor: attackStatus === 'attacked' ? '#ef4444' : '#f59e0b',
                         color: 'white',
                         padding: '2px 6px',
                         borderRadius: '4px',

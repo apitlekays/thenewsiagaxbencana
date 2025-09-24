@@ -22,11 +22,6 @@ export default function TestPulsingAnimation() {
         
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <div className="w-3 h-3 bg-green-500 rounded-full pulse-green"></div>
-            <span className="text-xs text-slate-600 dark:text-slate-400">Repairing</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
             <div className="w-3 h-3 bg-red-500 rounded-full pulse-red"></div>
             <span className="text-xs text-slate-600 dark:text-slate-400">Attacked</span>
           </div>
