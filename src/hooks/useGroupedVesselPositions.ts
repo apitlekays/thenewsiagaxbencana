@@ -31,8 +31,7 @@ export function useGroupedVesselPositions() {
       const { data: allPositions, error: positionsError } = await supabase
         .from('vessel_positions')
         .select('*')
-        .order('timestamp_utc', { ascending: true })
-        .limit(50000);
+        .order('timestamp_utc', { ascending: true });
 
       if (positionsError) {
         throw new Error(`Failed to fetch positions: ${positionsError.message || 'Unknown error'}`);
