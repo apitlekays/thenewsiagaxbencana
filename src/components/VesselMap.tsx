@@ -169,6 +169,17 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
   // Function to calculate a point at a given distance along a line
   const calculatePointAtDistance = (lat1: number, lng1: number, lat2: number, lng2: number, distanceNm: number): { lat: number; lng: number } => {
     const totalDistance = calculateDistance(lat1, lng1, lat2, lng2);
+    
+    // If the distance is greater than the total distance, return the end point
+    if (distanceNm >= totalDistance) {
+      return { lat: lat2, lng: lng2 };
+    }
+    
+    // If the distance is 0 or negative, return the start point
+    if (distanceNm <= 0) {
+      return { lat: lat1, lng: lng1 };
+    }
+    
     const ratio = distanceNm / totalDistance;
     
     const lat = lat1 + (lat2 - lat1) * ratio;
@@ -196,27 +207,33 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
       return;
     }
 
-    // Find the most forward vessel (closest to Gaza port)
-    let forwardVessel = validVessels[0];
-    let minDistance = calculateDistance(
-      parseFloat(forwardVessel.latitude!.toString()), 
-      parseFloat(forwardVessel.longitude!.toString()), 
-      GAZA_PORT.lat, 
-      GAZA_PORT.lng
-    );
-
-    for (const vessel of validVessels) {
-      const distance = calculateDistance(
+    // Find the most forward vessel from the main group (not outliers)
+    // First, calculate distances for all vessels
+    const vesselDistances = validVessels.map(vessel => ({
+      vessel,
+      distance: calculateDistance(
         parseFloat(vessel.latitude!.toString()), 
         parseFloat(vessel.longitude!.toString()), 
         GAZA_PORT.lat, 
         GAZA_PORT.lng
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        forwardVessel = vessel;
-      }
-    }
+      )
+    }));
+
+    // Sort by distance to find the main group
+    vesselDistances.sort((a, b) => a.distance - b.distance);
+
+    // Find the main group by looking for vessels within a reasonable distance of each other
+    // Use the median distance as a reference point for the main group
+    const medianIndex = Math.floor(vesselDistances.length / 2);
+    const medianDistance = vesselDistances[medianIndex].distance;
+    
+    // Consider vessels within 50nm of the median as part of the main group
+    const mainGroupVessels = vesselDistances.filter(vd => 
+      Math.abs(vd.distance - medianDistance) <= 50
+    );
+
+    // From the main group, find the one closest to Gaza (most forward)
+    const forwardVessel = mainGroupVessels[0].vessel;
 
     // Calculate distance to Gaza port from the forward vessel
     const distance = calculateDistance(
@@ -271,38 +288,57 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
     return null;
   }
 
-  // Calculate distance marker positions
-  const redDotPosition = calculatePointAtDistance(
+  // Calculate distance marker positions along the line from Gaza to forward vessel
+  const totalDistanceToGaza = flotillaData.distance || 0;
+  
+  // Only show dots if the flotilla is far enough from Gaza
+  const redDotPosition = totalDistanceToGaza > 100 ? calculatePointAtDistance(
     GAZA_PORT.lat, GAZA_PORT.lng,
     flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
     100
-  );
+  ) : null;
   
-  const yellowDotPosition = calculatePointAtDistance(
+  const yellowDotPosition = totalDistanceToGaza > 300 ? calculatePointAtDistance(
     GAZA_PORT.lat, GAZA_PORT.lng,
     flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
     300
-  );
+  ) : null;
+
+  // Debug logging to verify calculations
+  console.log('🔍 Dot Position Calculations:');
+  console.log('Forward vessel:', flotillaData.forwardVessel.name, 'at', flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng);
+  console.log('Gaza port:', GAZA_PORT.lat, GAZA_PORT.lng);
+  console.log('Total distance to Gaza:', totalDistanceToGaza.toFixed(1), 'nm');
+  if (redDotPosition) {
+    console.log('Red dot position (100nm from Gaza):', redDotPosition.lat.toFixed(6), redDotPosition.lng.toFixed(6));
+  } else {
+    console.log('Red dot: Not shown (flotilla too close to Gaza)');
+  }
+  if (yellowDotPosition) {
+    console.log('Yellow dot position (300nm from Gaza):', yellowDotPosition.lat.toFixed(6), yellowDotPosition.lng.toFixed(6));
+  } else {
+    console.log('Yellow dot: Not shown (flotilla too close to Gaza)');
+  }
 
   // Calculate distances from forward vessel to each dot
-  const distanceToRedDot = calculateDistance(
+  const distanceToRedDot = redDotPosition ? calculateDistance(
     flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
     redDotPosition.lat, redDotPosition.lng
-  );
+  ) : 0;
   
-  const distanceToYellowDot = calculateDistance(
+  const distanceToYellowDot = yellowDotPosition ? calculateDistance(
     flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
     yellowDotPosition.lat, yellowDotPosition.lng
-  );
+  ) : 0;
 
   // Calculate ETAs to each dot
-  const redDotETA = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+  const redDotETA = redDotPosition && flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
     hours: distanceToRedDot / flotillaData.averageSpeed,
     days: Math.floor(distanceToRedDot / flotillaData.averageSpeed / 24),
     hoursRemainder: Math.floor((distanceToRedDot / flotillaData.averageSpeed) % 24)
   } : null;
 
-  const yellowDotETA = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+  const yellowDotETA = yellowDotPosition && flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
     hours: distanceToYellowDot / flotillaData.averageSpeed,
     days: Math.floor(distanceToYellowDot / flotillaData.averageSpeed / 24),
     hoursRemainder: Math.floor((distanceToYellowDot / flotillaData.averageSpeed) % 24)
@@ -351,8 +387,9 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
       />
       
       {/* Red dot at 100nm from Gaza */}
-      <Marker
-        position={[redDotPosition.lat, redDotPosition.lng]}
+      {redDotPosition && (
+        <Marker
+          position={[redDotPosition.lat, redDotPosition.lng]}
         icon={L.divIcon({
           html: `
             <div style="
@@ -391,11 +428,13 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
           iconSize: [60, 40],
           iconAnchor: [30, 20]
         })}
-      />
+        />
+      )}
       
       {/* Yellow dot at 300nm from Gaza */}
-      <Marker
-        position={[yellowDotPosition.lat, yellowDotPosition.lng]}
+      {yellowDotPosition && (
+        <Marker
+          position={[yellowDotPosition.lat, yellowDotPosition.lng]}
         icon={L.divIcon({
           html: `
             <div style="
@@ -434,7 +473,8 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
           iconSize: [60, 40],
           iconAnchor: [30, 20]
         })}
-      />
+        />
+      )}
       
       {/* Distance and ETA display */}
       <Marker
@@ -1907,7 +1947,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
                                 {vessel.name || `Vessel ${vessel.id}`}
-                                {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen') && (
+                                {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen' || vessel.name === 'Summertime') && (
                                   <Eye 
                                     className="w-4 h-4 flex-shrink-0" 
                                     style={{ color: getOriginColor(vessel.origin || null) }}
