@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import { ArrowLeft, Ship, SquareArrowOutUpRight, LocateFixed, Info, Scale, Maximize, Minimize, Share2, Eye } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
@@ -115,6 +115,451 @@ function createSelectedVesselIcon(origin: string | null, size: number = 22): L.I
     iconAnchor: [size/2, size/2],
     popupAnchor: [0, -size/2],
   });
+}
+
+// Component to handle map clicks
+function MapClickHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      console.log(`📍 Map clicked at coordinates:`, {
+        latitude: lat.toFixed(6),
+        longitude: lng.toFixed(6),
+        lat: lat,
+        lng: lng
+      });
+    };
+
+    map.on('click', handleClick);
+
+    return () => {
+      map.off('click', handleClick);
+    };
+  }, [map]);
+
+  return null;
+}
+
+// Component to calculate and display flotilla forward vessel, distance to Gaza, and ETA
+function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }> }) {
+  const [flotillaData, setFlotillaData] = useState<{
+    forwardVessel: { lat: number; lng: number; name: string } | null;
+    distance: number | null;
+    eta: { days: number; hours: number } | null;
+    averageSpeed: number | null;
+  } | null>(null);
+
+  // Gaza port coordinates
+  const GAZA_PORT = { lat: 31.522727, lng: 34.431667 };
+
+  // Haversine formula to calculate distance in nautical miles
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 3440.065; // Earth's radius in nautical miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Function to calculate a point at a given distance along a line
+  const calculatePointAtDistance = (lat1: number, lng1: number, lat2: number, lng2: number, distanceNm: number): { lat: number; lng: number } => {
+    const totalDistance = calculateDistance(lat1, lng1, lat2, lng2);
+    const ratio = distanceNm / totalDistance;
+    
+    const lat = lat1 + (lat2 - lat1) * ratio;
+    const lng = lng1 + (lng2 - lng1) * ratio;
+    
+    return { lat, lng };
+  };
+
+  // Calculate flotilla forward vessel and related data
+  useEffect(() => {
+    if (vessels.length === 0) {
+      setFlotillaData(null);
+      return;
+    }
+
+    // Filter vessels with valid positions
+    const validVessels = vessels.filter(vessel => 
+      vessel.latitude && vessel.longitude && 
+      !isNaN(parseFloat(vessel.latitude.toString())) && 
+      !isNaN(parseFloat(vessel.longitude.toString()))
+    );
+
+    if (validVessels.length === 0) {
+      setFlotillaData(null);
+      return;
+    }
+
+    // Find the most forward vessel (closest to Gaza port)
+    let forwardVessel = validVessels[0];
+    let minDistance = calculateDistance(
+      parseFloat(forwardVessel.latitude!.toString()), 
+      parseFloat(forwardVessel.longitude!.toString()), 
+      GAZA_PORT.lat, 
+      GAZA_PORT.lng
+    );
+
+    for (const vessel of validVessels) {
+      const distance = calculateDistance(
+        parseFloat(vessel.latitude!.toString()), 
+        parseFloat(vessel.longitude!.toString()), 
+        GAZA_PORT.lat, 
+        GAZA_PORT.lng
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        forwardVessel = vessel;
+      }
+    }
+
+    // Calculate distance to Gaza port from the forward vessel
+    const distance = calculateDistance(
+      parseFloat(forwardVessel.latitude!.toString()), 
+      parseFloat(forwardVessel.longitude!.toString()), 
+      GAZA_PORT.lat, 
+      GAZA_PORT.lng
+    );
+
+    // Calculate average speed (only vessels with speed data)
+    const vesselsWithSpeed = validVessels.filter(vessel => 
+      vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0
+    );
+
+    let averageSpeed: number | null = null;
+    let eta: { days: number; hours: number } | null = null;
+
+    if (vesselsWithSpeed.length > 0) {
+      const totalSpeed = vesselsWithSpeed.reduce((sum, vessel) => 
+        sum + parseFloat(vessel.speed_knots!.toString()), 0
+      );
+      averageSpeed = totalSpeed / vesselsWithSpeed.length;
+
+      // Calculate ETA
+      const timeInHours = distance / averageSpeed;
+      const days = Math.floor(timeInHours / 24);
+      const hours = Math.floor(timeInHours % 24);
+
+      eta = { days, hours };
+    }
+
+    setFlotillaData({
+      forwardVessel: {
+        lat: parseFloat(forwardVessel.latitude!.toString()),
+        lng: parseFloat(forwardVessel.longitude!.toString()),
+        name: forwardVessel.name
+      },
+      distance,
+      eta,
+      averageSpeed
+    });
+
+    console.log(`🚢 Forward Vessel: ${forwardVessel.name} at ${parseFloat(forwardVessel.latitude!.toString()).toFixed(4)}, ${parseFloat(forwardVessel.longitude!.toString()).toFixed(4)}`);
+    console.log(`📏 Distance to Gaza: ${distance.toFixed(1)} nm`);
+    console.log(`⚡ Average Speed: ${averageSpeed?.toFixed(1) || 'N/A'} knots`);
+    console.log(`⏰ ETA: ${eta ? `${eta.days}d ${eta.hours}h` : 'N/A'}`);
+
+  }, [vessels, GAZA_PORT.lat, GAZA_PORT.lng]);
+
+  // Render the green line and distance/ETA display
+  if (!flotillaData || !flotillaData.forwardVessel) {
+    return null;
+  }
+
+  // Calculate distance marker positions
+  const redDotPosition = calculatePointAtDistance(
+    GAZA_PORT.lat, GAZA_PORT.lng,
+    flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+    100
+  );
+  
+  const yellowDotPosition = calculatePointAtDistance(
+    GAZA_PORT.lat, GAZA_PORT.lng,
+    flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+    300
+  );
+
+  return (
+    <>
+      {/* Transparent circle with yellow dashed border centered at Gaza port */}
+      <Circle
+        center={[GAZA_PORT.lat, GAZA_PORT.lng]}
+        radius={555600} // 300nm radius (300 * 1852 meters)
+        pathOptions={{
+          color: '#eab308',
+          weight: 2,
+          opacity: 0.6,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Transparent circle with red dashed border centered at Gaza port */}
+      <Circle
+        center={[GAZA_PORT.lat, GAZA_PORT.lng]}
+        radius={185200} // 100nm radius (100 * 1852 meters)
+        pathOptions={{
+          color: '#ef4444',
+          weight: 2,
+          opacity: 0.6,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Green line from forward vessel to Gaza port */}
+      <Polyline
+        positions={[
+          [flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng],
+          [GAZA_PORT.lat, GAZA_PORT.lng]
+        ]}
+        color="#10b981"
+        weight={3}
+        opacity={0.8}
+        dashArray="10, 5"
+      />
+      
+      {/* Red dot at 100nm from Gaza */}
+      <Marker
+        position={[redDotPosition.lat, redDotPosition.lng]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
+            ">
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #ef4444;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+              "></div>
+              <div style="
+                background: rgba(0, 0, 0, 0.7);
+                color: #ffffff;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 8px;
+                font-weight: 600;
+                text-align: center;
+                white-space: nowrap;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                line-height: 1.1;
+              ">
+                <div>Red Zone</div>
+                <div>100nm</div>
+              </div>
+            </div>
+          `,
+          className: 'distance-marker',
+          iconSize: [60, 30],
+          iconAnchor: [30, 15]
+        })}
+      />
+      
+      {/* Yellow dot at 300nm from Gaza */}
+      <Marker
+        position={[yellowDotPosition.lat, yellowDotPosition.lng]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
+            ">
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #eab308;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+              "></div>
+              <div style="
+                background: rgba(0, 0, 0, 0.7);
+                color: #ffffff;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 8px;
+                font-weight: 600;
+                text-align: center;
+                white-space: nowrap;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                line-height: 1.1;
+              ">
+                <div>Yellow Zone</div>
+                <div>300nm</div>
+              </div>
+            </div>
+          `,
+          className: 'distance-marker',
+          iconSize: [60, 30],
+          iconAnchor: [30, 15]
+        })}
+      />
+      
+      {/* Distance and ETA display */}
+      <Marker
+        position={[
+          (flotillaData.forwardVessel.lat + GAZA_PORT.lat) / 2,
+          (flotillaData.forwardVessel.lng + GAZA_PORT.lng) / 2
+        ]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+              color: #f8fafc;
+              padding: 10px 14px;
+              border-radius: 8px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              backdrop-filter: blur(8px);
+              min-width: 140px;
+              position: relative;
+            ">
+              <!-- Header -->
+              <div style="
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+                padding-bottom: 6px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              ">
+                <div style="
+                  width: 6px;
+                  height: 6px;
+                  background: #10b981;
+                  border-radius: 50%;
+                  margin-right: 6px;
+                  animation: pulse 2s infinite;
+                "></div>
+                <div style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #10b981;
+                  text-transform: uppercase;
+                  letter-spacing: 0.3px;
+                ">Estimation</div>
+              </div>
+              
+              <!-- Vessel Name -->
+              <div style="
+                font-size: 12px;
+                font-weight: 700;
+                color: #f8fafc;
+                margin-bottom: 6px;
+                display: flex;
+                align-items: center;
+              ">
+                Flotilla → Gaza
+              </div>
+              
+              <!-- Stats Grid -->
+              <div style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                margin-bottom: 6px;
+              ">
+                <!-- Distance -->
+                <div style="
+                  background: rgba(16, 185, 129, 0.1);
+                  padding: 4px 6px;
+                  border-radius: 4px;
+                  border: 1px solid rgba(16, 185, 129, 0.2);
+                ">
+                  <div style="
+                    font-size: 8px;
+                    color: #10b981;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.2px;
+                    margin-bottom: 1px;
+                  ">Distance</div>
+                  <div style="
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                  ">${flotillaData.distance?.toFixed(1) || 'N/A'} nm</div>
+                </div>
+                
+                <!-- ETA -->
+                <div style="
+                  background: rgba(59, 130, 246, 0.1);
+                  padding: 4px 6px;
+                  border-radius: 4px;
+                  border: 1px solid rgba(59, 130, 246, 0.2);
+                ">
+                  <div style="
+                    font-size: 8px;
+                    color: #3b82f6;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.2px;
+                    margin-bottom: 1px;
+                  ">ETA</div>
+                  <div style="
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                  ">${flotillaData.eta ? `${flotillaData.eta.days}d ${flotillaData.eta.hours}h` : 'N/A'}</div>
+                </div>
+              </div>
+              
+              <!-- Average Speed -->
+              ${flotillaData.averageSpeed ? `
+                <div style="
+                  background: rgba(245, 158, 11, 0.1);
+                  padding: 4px 6px;
+                  border-radius: 4px;
+                  border: 1px solid rgba(245, 158, 11, 0.2);
+                  text-align: center;
+                ">
+                  <div style="
+                    font-size: 8px;
+                    color: #f59e0b;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.2px;
+                    margin-bottom: 1px;
+                  ">Average Speed</div>
+                  <div style="
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                  ">${flotillaData.averageSpeed.toFixed(1)} kts</div>
+                </div>
+              ` : ''}
+              
+              <!-- Pulse animation -->
+              <style>
+                @keyframes pulse {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+              </style>
+            </div>
+          `,
+          className: 'flotilla-eta-marker',
+          iconSize: [140, 80],
+          iconAnchor: [70, 40]
+        })}
+      />
+    </>
+  );
 }
 
 // Function to create pulsing location marker icon with label
@@ -738,8 +1183,14 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           maxZoom={20}
         />
         
+        {/* Map Click Handler */}
+        <MapClickHandler />
+        
         {/* Map Recenter Component */}
         <MapRecenter vessels={vessels} />
+        
+        {/* Flotilla Center and ETA to Gaza */}
+        <FlotillaCenter vessels={vessels} />
         
         {/* Vessel Pathways */}
         {showPathways && (() => {
@@ -793,139 +1244,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           }
         })()}
         
-        {/* Red Zone Line */}
-        <Polyline
-          positions={[
-            [36.281165, 32.391401],
-            [31.448053, 31.851903]
-          ]}
-          color="#dc2626"
-          weight={2}
-          opacity={0.8}
-          dashArray="10, 5"
-        />
         
-        {/* Red Zone Labels along the line */}
-        {(() => {
-          const startLat = 36.281165;
-          const startLng = 32.391401;
-          const endLat = 31.448053;
-          const endLng = 31.851903;
-          
-          // Calculate the bearing (angle) of the line
-          const bearing = Math.atan2(endLng - startLng, endLat - startLat) * (180 / Math.PI);
-          
-          // Create 2 labels along the line at different intervals
-          const intervals = [0.3, 0.7]; // 30%, 70% along the line
-          
-          return intervals.map((interval, index) => {
-            // Calculate position along the line
-            const lat = startLat + (endLat - startLat) * interval;
-            const lng = startLng + (endLng - startLng) * interval;
-            
-            // Calculate rotation angle (bearing + 90 degrees to make text follow the line)
-            const rotationAngle = bearing + 90;
-            
-            // Offset the label perpendicular to the line for better readability
-            const offsetDistance = 0.01; // Offset distance in degrees
-            const offsetLat = lat + offsetDistance * Math.cos(bearing * Math.PI / 180);
-            const offsetLng = lng + offsetDistance * Math.sin(bearing * Math.PI / 180);
-            
-            return (
-              <Marker
-                key={`red-zone-label-${index}`}
-                position={[offsetLat, offsetLng]}
-                icon={L.divIcon({
-                  html: `
-                    <div style="
-                      color: #dc2626;
-                      font-size: 12px;
-                      font-weight: bold;
-                      text-align: center;
-                      white-space: nowrap;
-                      transform: rotate(${rotationAngle}deg);
-                      transform-origin: center;
-                      display: inline-block;
-                      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-                    ">
-                      RED ZONE
-                    </div>
-                  `,
-                  className: 'red-zone-label',
-                  iconSize: [70, 16],
-                  iconAnchor: [35, 8],
-                })}
-              />
-            );
-          });
-        })()}
         
-        {/* Yellow Zone Line */}
-        <Polyline
-          positions={[
-            [36.299916, 29.378415],
-            [31.129952, 27.461504]
-          ]}
-          color="#eab308"
-          weight={2}
-          opacity={0.8}
-          dashArray="10, 5"
-        />
-        
-        {/* Yellow Zone Labels along the line */}
-        {(() => {
-          const startLat = 36.299916;
-          const startLng = 29.378415;
-          const endLat = 31.129952;
-          const endLng = 27.461504;
-          
-          // Calculate the bearing (angle) of the line
-          const bearing = Math.atan2(endLng - startLng, endLat - startLat) * (180 / Math.PI);
-          
-          // Create 2 labels along the line at different intervals
-          const intervals = [0.3, 0.7]; // 30%, 70% along the line
-          
-          return intervals.map((interval, index) => {
-            // Calculate position along the line
-            const lat = startLat + (endLat - startLat) * interval;
-            const lng = startLng + (endLng - startLng) * interval;
-            
-            // Calculate rotation angle (bearing + 90 degrees to make text follow the line)
-            const rotationAngle = bearing + 90;
-            
-            // Offset the label perpendicular to the line for better readability
-            const offsetDistance = 0.01; // Offset distance in degrees
-            const offsetLat = lat + offsetDistance * Math.cos(bearing * Math.PI / 180);
-            const offsetLng = lng + offsetDistance * Math.sin(bearing * Math.PI / 180);
-            
-            return (
-              <Marker
-                key={`yellow-zone-label-${index}`}
-                position={[offsetLat, offsetLng]}
-                icon={L.divIcon({
-                  html: `
-                    <div style="
-                      color: #eab308;
-                      font-size: 12px;
-                      font-weight: bold;
-                      text-align: center;
-                      white-space: nowrap;
-                      transform: rotate(${rotationAngle}deg);
-                      transform-origin: center;
-                      display: inline-block;
-                      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-                    ">
-                      YELLOW ZONE
-                    </div>
-                  `,
-                  className: 'yellow-zone-label',
-                  iconSize: [90, 16],
-                  iconAnchor: [45, 8],
-                })}
-              />
-            );
-          });
-        })()}
         
         {/* Vessel Markers */}
         {animatedVessels ? (

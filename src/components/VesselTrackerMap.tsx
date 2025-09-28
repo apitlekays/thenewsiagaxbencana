@@ -57,6 +57,31 @@ function createVesselIcon(origin: string | null, size: number = 25): L.Icon {
   });
 }
 
+// Component to handle map clicks
+function MapClickHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      console.log(`📍 Map clicked at coordinates:`, {
+        latitude: lat.toFixed(6),
+        longitude: lng.toFixed(6),
+        lat: lat,
+        lng: lng
+      });
+    };
+
+    map.on('click', handleClick);
+
+    return () => {
+      map.off('click', handleClick);
+    };
+  }, [map]);
+
+  return null;
+}
+
 // Component to get map reference for animation
 function MapRef({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
   const map = useMap();
@@ -522,6 +547,9 @@ export default function VesselTrackerMap() {
           subdomains="abc"
           maxZoom={20}
         />
+        
+        {/* Map Click Handler */}
+        <MapClickHandler />
         
         {/* Map Recenter Component */}
         <MapRecenter vessels={vessels} />
