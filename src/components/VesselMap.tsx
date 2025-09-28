@@ -284,6 +284,30 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
     300
   );
 
+  // Calculate distances from forward vessel to each dot
+  const distanceToRedDot = calculateDistance(
+    flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+    redDotPosition.lat, redDotPosition.lng
+  );
+  
+  const distanceToYellowDot = calculateDistance(
+    flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+    yellowDotPosition.lat, yellowDotPosition.lng
+  );
+
+  // Calculate ETAs to each dot
+  const redDotETA = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+    hours: distanceToRedDot / flotillaData.averageSpeed,
+    days: Math.floor(distanceToRedDot / flotillaData.averageSpeed / 24),
+    hoursRemainder: Math.floor((distanceToRedDot / flotillaData.averageSpeed) % 24)
+  } : null;
+
+  const yellowDotETA = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+    hours: distanceToYellowDot / flotillaData.averageSpeed,
+    days: Math.floor(distanceToYellowDot / flotillaData.averageSpeed / 24),
+    hoursRemainder: Math.floor((distanceToYellowDot / flotillaData.averageSpeed) % 24)
+  } : null;
+
   return (
     <>
       {/* Transparent circle with yellow dashed border centered at Gaza port */}
@@ -359,12 +383,13 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
               ">
                 <div>Red Zone</div>
                 <div>100nm</div>
+                ${redDotETA ? `<div>ETA: ${redDotETA.days}d ${redDotETA.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
               </div>
             </div>
           `,
           className: 'distance-marker',
-          iconSize: [60, 30],
-          iconAnchor: [30, 15]
+          iconSize: [60, 40],
+          iconAnchor: [30, 20]
         })}
       />
       
@@ -401,12 +426,13 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
               ">
                 <div>Yellow Zone</div>
                 <div>300nm</div>
+                ${yellowDotETA ? `<div>ETA: ${yellowDotETA.days}d ${yellowDotETA.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
               </div>
             </div>
           `,
           className: 'distance-marker',
-          iconSize: [60, 30],
-          iconAnchor: [30, 15]
+          iconSize: [60, 40],
+          iconAnchor: [30, 20]
         })}
       />
       
