@@ -150,7 +150,11 @@ export default function VesselTrackerMap() {
         vesselPositions={vesselPositions}
         animatedVessels={animatedVessels}
         timelineData={timelineData}
-        currentTimelineFrame={currentTimelineFrame}
+        currentTimelineFrame={
+          isTimelinePlaying
+            ? currentTimelineFrame
+            : (timelineData && timelineData.length > 0 ? timelineData.length - 1 : undefined)
+        }
       />
 
       {/* Timeline Component - Always visible, loads asynchronously */}

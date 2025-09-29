@@ -126,8 +126,11 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
 
   useEffect(() => {
     const handleClick = (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      console.log(`Map clicked at: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      
       if (onMapClick) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
+        onMapClick(lat, lng);
       }
     };
 
@@ -142,7 +145,26 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
 }
 
 // Component to calculate and display flotilla forward vessel, distance to Gaza, and ETA
-function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }> }) {
+function FlotillaCenter({ 
+  vessels, 
+  timelineData, 
+  currentTimelineFrame 
+}: { 
+  vessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }>;
+  timelineData?: Array<{
+    timestamp: string;
+    vessels: Array<{
+      name: string;
+      lat: number;
+      lng: number;
+      origin: string | null;
+      course: number | null;
+      speed_knots?: number | null;
+      speed_kmh?: number | null;
+    }>;
+  }>;
+  currentTimelineFrame?: number;
+}) {
   const [flotillaData, setFlotillaData] = useState<{
     forwardVessel: { lat: number; lng: number; name: string } | null;
     distance: number | null;
@@ -189,17 +211,45 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
 
   // Calculate flotilla forward vessel and related data
   useEffect(() => {
-    if (vessels.length === 0) {
-      setFlotillaData(null);
-      return;
-    }
+    // Determine which data source to use: timeline data (preferred) or vessels table (fallback)
+    let validVessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }> = [];
+    
+    if (timelineData && timelineData.length > 0) {
+      // Use timeline data to get latest positions
+      const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+        ? currentTimelineFrame
+        : timelineData.length - 1;
 
-    // Filter vessels with valid positions
-    const validVessels = vessels.filter(vessel => 
+      // Build last-known position per vessel across all frames up to the chosen index
+      const lastKnownByName = new Map<string, { name: string; lat: number; lng: number; origin: string | null; course: number | null; speed_knots?: number | null; speed_kmh?: number | null }>();
+      for (let i = 0; i <= latestIndex; i++) {
+        const frame = timelineData[i];
+        if (!frame || !frame.vessels) continue;
+        frame.vessels.forEach(v => {
+          // Always overwrite so the latest encountered wins
+          lastKnownByName.set(v.name, v);
+        });
+      }
+
+      // Convert timeline data to vessels format for compatibility
+      // Enrich with speed data from vessels table (same as TestPulsingAnimation.tsx)
+      validVessels = Array.from(lastKnownByName.values()).map(vessel => {
+        const vesselFromTable = vessels.find(v => v.name === vessel.name);
+        return {
+          name: vessel.name,
+          latitude: vessel.lat,
+          longitude: vessel.lng,
+          speed_knots: vessel.speed_knots || vesselFromTable?.speed_knots || null
+        };
+      });
+    } else {
+      // Fallback to vessels table data
+      validVessels = vessels.filter(vessel => 
       vessel.latitude && vessel.longitude && 
       !isNaN(parseFloat(vessel.latitude.toString())) && 
       !isNaN(parseFloat(vessel.longitude.toString()))
     );
+    }
 
     if (validVessels.length === 0) {
       setFlotillaData(null);
@@ -268,7 +318,7 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
     });
 
 
-  }, [vessels, GAZA_PORT]);
+  }, [vessels, timelineData, currentTimelineFrame, GAZA_PORT]);
 
   // Render the green line and distance/ETA display
   if (!flotillaData || !flotillaData.forwardVessel) {
@@ -347,6 +397,9 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
         }}
       />
       
+      {/* Zoom-dependent inner circles */}
+      <ZoomDependentCircles gazaPort={GAZA_PORT} />
+      
       {/* Green line from forward vessel to Gaza port */}
       <Polyline
         positions={[
@@ -359,50 +412,19 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
         dashArray="10, 5"
       />
       
-      {/* Red dot at 100nm from Gaza */}
-      {redDotPosition && (
-        <Marker
-          position={[redDotPosition.lat, redDotPosition.lng]}
-        icon={L.divIcon({
-          html: `
-            <div style="
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 2px;
-            ">
-              <div style="
-                width: 12px;
-                height: 12px;
-                background: #ef4444;
-                border: 2px solid #ffffff;
-                border-radius: 50%;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-              "></div>
-              <div style="
-                background: rgba(0, 0, 0, 0.7);
-                color: #ffffff;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 8px;
-                font-weight: 600;
-                text-align: center;
-                white-space: nowrap;
-                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-                line-height: 1.1;
-              ">
-                <div>Red Zone</div>
-                <div>100nm</div>
-                ${redDotETA ? `<div>ETA: ${redDotETA.days}d ${redDotETA.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
-              </div>
-            </div>
-          `,
-          className: 'distance-marker',
-          iconSize: [60, 40],
-          iconAnchor: [30, 20]
-        })}
-        />
-      )}
+      {/* Progress dots along green line - only show at zoom level 8 and above */}
+      <ZoomDependentProgressDots 
+        flotillaData={flotillaData}
+        GAZA_PORT={GAZA_PORT}
+        calculatePointAtDistance={calculatePointAtDistance}
+        calculateDistance={calculateDistance}
+      />
+      
+      {/* Red dot at 100nm from Gaza - hidden at zoom level 8 and above */}
+      <ZoomDependentRedDot 
+        redDotPosition={redDotPosition}
+        redDotETA={redDotETA}
+      />
       
       {/* Yellow dot at 300nm from Gaza */}
       {yellowDotPosition && (
@@ -449,154 +471,6 @@ function FlotillaCenter({ vessels }: { vessels: Array<{ latitude?: number | null
         />
       )}
       
-      {/* Distance and ETA display */}
-      <Marker
-        position={[
-          (flotillaData.forwardVessel.lat + GAZA_PORT.lat) / 2,
-          (flotillaData.forwardVessel.lng + GAZA_PORT.lng) / 2
-        ]}
-        icon={L.divIcon({
-          html: `
-            <div style="
-              background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-              color: #f8fafc;
-              padding: 10px 14px;
-              border-radius: 8px;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
-              border: 1px solid rgba(255, 255, 255, 0.1);
-              backdrop-filter: blur(8px);
-              min-width: 140px;
-              position: relative;
-            ">
-              <!-- Header -->
-              <div style="
-                display: flex;
-                align-items: center;
-                margin-bottom: 8px;
-                padding-bottom: 6px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-              ">
-                <div style="
-                  width: 6px;
-                  height: 6px;
-                  background: #10b981;
-                  border-radius: 50%;
-                  margin-right: 6px;
-                  animation: pulse 2s infinite;
-                "></div>
-                <div style="
-                  font-size: 10px;
-                  font-weight: 600;
-                  color: #10b981;
-                  text-transform: uppercase;
-                  letter-spacing: 0.3px;
-                ">Estimation</div>
-              </div>
-              
-              <!-- Vessel Name -->
-              <div style="
-                font-size: 12px;
-                font-weight: 700;
-                color: #f8fafc;
-                margin-bottom: 6px;
-                display: flex;
-                align-items: center;
-              ">
-                Flotilla → Gaza
-              </div>
-              
-              <!-- Stats Grid -->
-              <div style="
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 6px;
-                margin-bottom: 6px;
-              ">
-                <!-- Distance -->
-                <div style="
-                  background: rgba(16, 185, 129, 0.1);
-                  padding: 4px 6px;
-                  border-radius: 4px;
-                  border: 1px solid rgba(16, 185, 129, 0.2);
-                ">
-                  <div style="
-                    font-size: 8px;
-                    color: #10b981;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.2px;
-                    margin-bottom: 1px;
-                  ">Distance</div>
-                  <div style="
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: #f8fafc;
-                  ">${flotillaData.distance?.toFixed(1) || 'N/A'} nm</div>
-                </div>
-                
-                <!-- ETA -->
-                <div style="
-                  background: rgba(59, 130, 246, 0.1);
-                  padding: 4px 6px;
-                  border-radius: 4px;
-                  border: 1px solid rgba(59, 130, 246, 0.2);
-                ">
-                  <div style="
-                    font-size: 8px;
-                    color: #3b82f6;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.2px;
-                    margin-bottom: 1px;
-                  ">ETA</div>
-                  <div style="
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: #f8fafc;
-                  ">${flotillaData.eta ? `${flotillaData.eta.days}d ${flotillaData.eta.hours}h` : 'N/A'}</div>
-                </div>
-              </div>
-              
-              <!-- Average Speed -->
-              ${flotillaData.averageSpeed ? `
-                <div style="
-                  background: rgba(245, 158, 11, 0.1);
-                  padding: 4px 6px;
-                  border-radius: 4px;
-                  border: 1px solid rgba(245, 158, 11, 0.2);
-                  text-align: center;
-                ">
-                  <div style="
-                    font-size: 8px;
-                    color: #f59e0b;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.2px;
-                    margin-bottom: 1px;
-                  ">Average Speed</div>
-                  <div style="
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: #f8fafc;
-                  ">${flotillaData.averageSpeed.toFixed(1)} kts</div>
-                </div>
-              ` : ''}
-              
-              <!-- Pulse animation -->
-              <style>
-                @keyframes pulse {
-                  0%, 100% { opacity: 1; }
-                  50% { opacity: 0.5; }
-                }
-              </style>
-            </div>
-          `,
-          className: 'flotilla-eta-marker',
-          iconSize: [140, 80],
-          iconAnchor: [70, 40]
-        })}
-      />
     </>
   );
 }
@@ -652,7 +526,7 @@ function createGreenPulsingIconWithLabel(cityName: string, countryName: string) 
   const svg = `
     <svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">
       <!-- Semi-transparent background with better positioning -->
-      <rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="rgba(0,0,0,0.7)" rx="6" ry="6" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="rgba(0,0,0,0.7)" rx="6" ry="6"/>
       
       <!-- Pulsing circle -->
       <circle cx="${padding + size/2}" cy="${padding + size/2}" r="${size/2 - 2}" fill="#10B981" opacity="0.8">
@@ -677,7 +551,7 @@ function createGreenPulsingIconWithLabel(cityName: string, countryName: string) 
     html: svg,
     className: 'custom-pulsing-marker-with-label',
     iconSize: [totalWidth, totalHeight],
-    iconAnchor: [totalWidth/2, totalHeight/2],
+    iconAnchor: [0, totalHeight/2],
   });
 }
 
@@ -692,7 +566,7 @@ function createRedInterceptionMarker(vesselName: string, date: string) {
   const svg = `
     <svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">
       <!-- Semi-transparent background with better positioning -->
-      <rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="rgba(0,0,0,0.7)" rx="6" ry="6" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="rgba(0,0,0,0.7)" rx="6" ry="6"/>
       
       <!-- Red circle -->
       <circle cx="${padding + size/2}" cy="${padding + size/2}" r="${size/2 - 2}" fill="#DC2626" opacity="0.9"/>
@@ -713,7 +587,7 @@ function createRedInterceptionMarker(vesselName: string, date: string) {
     html: svg,
     className: 'custom-interception-marker',
     iconSize: [totalWidth, totalHeight],
-    iconAnchor: [totalWidth/2, totalHeight/2],
+    iconAnchor: [0, totalHeight/2],
   });
 }
 
@@ -771,6 +645,667 @@ function CourseTriangle({ vesselLat, vesselLng, course, origin }: {
       icon={createCourseTriangleIcon(origin, course)}
       interactive={false}
       zIndexOffset={500}
+    />
+  );
+}
+
+// Component to render zoom-dependent circles
+function ZoomDependentCircles({ gazaPort }: { gazaPort: { lat: number; lng: number } }) {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+
+  useEffect(() => {
+    const handleZoomChange = () => {
+      setCurrentZoom(map.getZoom());
+    };
+
+    map.on('zoomend', handleZoomChange);
+    return () => {
+      map.off('zoomend', handleZoomChange);
+    };
+  }, [map]);
+
+  // Only render circles at zoom level 8 and above
+  if (currentZoom < 8) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* Inner red circle at 66.6nm radius - R2 */}
+      <Circle
+        center={[gazaPort.lat, gazaPort.lng]}
+        radius={123343} // 66.6nm radius (66.6 * 1852 meters)
+        pathOptions={{
+          color: '#ef4444',
+          weight: 2,
+          opacity: 0.3,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Inner red circle at 33.3nm radius - R1 */}
+      <Circle
+        center={[gazaPort.lat, gazaPort.lng]}
+        radius={61672} // 33.3nm radius (33.3 * 1852 meters)
+        pathOptions={{
+          color: '#ef4444',
+          weight: 2,
+          opacity: 0.3,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Yellow circle at 233.3nm radius - Y2 */}
+      <Circle
+        center={[gazaPort.lat, gazaPort.lng]}
+        radius={432116} // 233.3nm radius (233.3 * 1852 meters)
+        pathOptions={{
+          color: '#eab308',
+          weight: 2,
+          opacity: 0.3,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Yellow circle at 166.7nm radius - Y1 */}
+      <Circle
+        center={[gazaPort.lat, gazaPort.lng]}
+        radius={308728} // 166.7nm radius (166.7 * 1852 meters)
+        pathOptions={{
+          color: '#eab308',
+          weight: 2,
+          opacity: 0.3,
+          fillColor: 'transparent',
+          fillOpacity: 0,
+          dashArray: '10, 5'
+        }}
+      />
+      
+      {/* Circle Labels - positioned on the circle perimeters (west side) */}
+      {/* Y3 Label (300nm) - on the 300nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 5.8635]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #eab308;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #eab308;
+            ">Y3</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+      
+      {/* Y2 Label (233.3nm) - on the 233.3nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 4.563]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #eab308;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #eab308;
+            ">Y2</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+      
+      {/* Y1 Label (166.7nm) - on the 166.7nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 3.255]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #eab308;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #eab308;
+            ">Y1</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+      
+      {/* R3 Label (100nm) - on the 100nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 1.954]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #ef4444;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #ef4444;
+            ">R3</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+      
+      {/* R2 Label (66.6nm) - on the 66.6nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 1.295]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #ef4444;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #ef4444;
+            ">R2</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+      
+      {/* R1 Label (33.3nm) - on the 33.3nm circle perimeter */}
+      <Marker
+        position={[gazaPort.lat, gazaPort.lng - 0.65]}
+        icon={L.divIcon({
+          html: `
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #ef4444;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: bold;
+              text-align: center;
+              white-space: nowrap;
+              border: 1px solid #ef4444;
+            ">R1</div>
+          `,
+          className: 'circle-label',
+          iconSize: [20, 12],
+          iconAnchor: [10, 6]
+        })}
+        interactive={false}
+        zIndexOffset={100}
+      />
+    </>
+  );
+}
+
+// Component to render zoom-dependent progress dots
+function ZoomDependentProgressDots({ 
+  flotillaData, 
+  GAZA_PORT, 
+  calculatePointAtDistance, 
+  calculateDistance 
+}: { 
+  flotillaData: {
+    forwardVessel: { lat: number; lng: number; name: string } | null;
+    distance: number | null;
+    eta: { days: number; hours: number } | null;
+    averageSpeed: number | null;
+  } | null;
+  GAZA_PORT: { lat: number; lng: number };
+  calculatePointAtDistance: (lat1: number, lng1: number, lat2: number, lng2: number, distanceNm: number) => { lat: number; lng: number };
+  calculateDistance: (lat1: number, lng1: number, lat2: number, lng2: number) => number;
+}) {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+
+  useEffect(() => {
+    const handleZoomChange = () => {
+      setCurrentZoom(map.getZoom());
+    };
+
+    map.on('zoomend', handleZoomChange);
+    return () => {
+      map.off('zoomend', handleZoomChange);
+    };
+  }, [map]);
+
+  // Only render progress dots at zoom level 8 and above
+  if (currentZoom < 8 || !flotillaData || !flotillaData.forwardVessel) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* Y2 dot (233.3nm) - only show if forward vessel is further than 233.3nm from Gaza */}
+      {flotillaData.distance && flotillaData.distance > 233.3 && (() => {
+        const y2Position = calculatePointAtDistance(
+          GAZA_PORT.lat, GAZA_PORT.lng,
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          233.3
+        );
+        const distanceToY2 = calculateDistance(
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          y2Position.lat, y2Position.lng
+        );
+        const etaToY2 = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+          hours: distanceToY2 / flotillaData.averageSpeed,
+          days: Math.floor(distanceToY2 / flotillaData.averageSpeed / 24),
+          hoursRemainder: Math.floor((distanceToY2 / flotillaData.averageSpeed) % 24)
+        } : null;
+        
+        return (
+          <Marker
+            position={[y2Position.lat, y2Position.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 6px;
+                ">
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: #eab308;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                  "></div>
+                  <div style="
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                    line-height: 1.1;
+                  ">
+                    <div>Y2 (233.3nm)</div>
+                    <div>Dist: ${distanceToY2.toFixed(1)}nm</div>
+                    ${etaToY2 ? `<div>ETA: ${etaToY2.days}d ${etaToY2.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  </div>
+                </div>
+              `,
+              className: 'progress-dot',
+              iconSize: [150, 24],
+              iconAnchor: [6, 12]
+            })}
+            interactive={false}
+            zIndexOffset={200}
+          />
+        );
+      })()}
+      
+      {/* Y1 dot (166.7nm) - only show if forward vessel is further than 166.7nm from Gaza */}
+      {flotillaData.distance && flotillaData.distance > 166.7 && (() => {
+        const y1Position = calculatePointAtDistance(
+          GAZA_PORT.lat, GAZA_PORT.lng,
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          166.7
+        );
+        const distanceToY1 = calculateDistance(
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          y1Position.lat, y1Position.lng
+        );
+        const etaToY1 = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+          hours: distanceToY1 / flotillaData.averageSpeed,
+          days: Math.floor(distanceToY1 / flotillaData.averageSpeed / 24),
+          hoursRemainder: Math.floor((distanceToY1 / flotillaData.averageSpeed) % 24)
+        } : null;
+        
+        return (
+          <Marker
+            position={[y1Position.lat, y1Position.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 6px;
+                ">
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: #eab308;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                  "></div>
+                  <div style="
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                    line-height: 1.1;
+                  ">
+                    <div>Y1 (166.7nm)</div>
+                    <div>Dist: ${distanceToY1.toFixed(1)}nm</div>
+                    ${etaToY1 ? `<div>ETA: ${etaToY1.days}d ${etaToY1.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  </div>
+                </div>
+              `,
+              className: 'progress-dot',
+              iconSize: [150, 24],
+              iconAnchor: [6, 12]
+            })}
+            interactive={false}
+            zIndexOffset={200}
+          />
+        );
+      })()}
+      
+      {/* R3 dot (100nm) - only show if forward vessel is further than 100nm from Gaza */}
+      {flotillaData.distance && flotillaData.distance > 100 && (() => {
+        const r3Position = calculatePointAtDistance(
+          GAZA_PORT.lat, GAZA_PORT.lng,
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          100
+        );
+        const distanceToR3 = calculateDistance(
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          r3Position.lat, r3Position.lng
+        );
+        const etaToR3 = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+          hours: distanceToR3 / flotillaData.averageSpeed,
+          days: Math.floor(distanceToR3 / flotillaData.averageSpeed / 24),
+          hoursRemainder: Math.floor((distanceToR3 / flotillaData.averageSpeed) % 24)
+        } : null;
+        
+        return (
+          <Marker
+            position={[r3Position.lat, r3Position.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 6px;
+                ">
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: #ef4444;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                  "></div>
+                  <div style="
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                    line-height: 1.1;
+                  ">
+                    <div>R3 (100nm)</div>
+                    <div>Dist: ${distanceToR3.toFixed(1)}nm</div>
+                    ${etaToR3 ? `<div>ETA: ${etaToR3.days}d ${etaToR3.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  </div>
+                </div>
+              `,
+              className: 'progress-dot',
+              iconSize: [150, 24],
+              iconAnchor: [6, 12]
+            })}
+            interactive={false}
+            zIndexOffset={200}
+          />
+        );
+      })()}
+      
+      {/* R2 dot (66.6nm) - only show if forward vessel is further than 66.6nm from Gaza */}
+      {flotillaData.distance && flotillaData.distance > 66.6 && (() => {
+        const r2Position = calculatePointAtDistance(
+          GAZA_PORT.lat, GAZA_PORT.lng,
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          66.6
+        );
+        const distanceToR2 = calculateDistance(
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          r2Position.lat, r2Position.lng
+        );
+        const etaToR2 = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+          hours: distanceToR2 / flotillaData.averageSpeed,
+          days: Math.floor(distanceToR2 / flotillaData.averageSpeed / 24),
+          hoursRemainder: Math.floor((distanceToR2 / flotillaData.averageSpeed) % 24)
+        } : null;
+        
+        return (
+          <Marker
+            position={[r2Position.lat, r2Position.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 6px;
+                ">
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: #ef4444;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                  "></div>
+                  <div style="
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                    line-height: 1.1;
+                  ">
+                    <div>R2 (66.6nm)</div>
+                    <div>Dist: ${distanceToR2.toFixed(1)}nm</div>
+                    ${etaToR2 ? `<div>ETA: ${etaToR2.days}d ${etaToR2.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  </div>
+                </div>
+              `,
+              className: 'progress-dot',
+              iconSize: [150, 24],
+              iconAnchor: [6, 12]
+            })}
+            interactive={false}
+            zIndexOffset={200}
+          />
+        );
+      })()}
+      
+      {/* R1 dot (33.3nm) - only show if forward vessel is further than 33.3nm from Gaza */}
+      {flotillaData.distance && flotillaData.distance > 33.3 && (() => {
+        const r1Position = calculatePointAtDistance(
+          GAZA_PORT.lat, GAZA_PORT.lng,
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          33.3
+        );
+        const distanceToR1 = calculateDistance(
+          flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng,
+          r1Position.lat, r1Position.lng
+        );
+        const etaToR1 = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
+          hours: distanceToR1 / flotillaData.averageSpeed,
+          days: Math.floor(distanceToR1 / flotillaData.averageSpeed / 24),
+          hoursRemainder: Math.floor((distanceToR1 / flotillaData.averageSpeed) % 24)
+        } : null;
+        
+        return (
+          <Marker
+            position={[r1Position.lat, r1Position.lng]}
+            icon={L.divIcon({
+              html: `
+                <div style="
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  gap: 6px;
+                ">
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: #ef4444;
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                  "></div>
+                  <div style="
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                    line-height: 1.1;
+                  ">
+                    <div>R1 (33.3nm)</div>
+                    <div>Dist: ${distanceToR1.toFixed(1)}nm</div>
+                    ${etaToR1 ? `<div>ETA: ${etaToR1.days}d ${etaToR1.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  </div>
+                </div>
+              `,
+              className: 'progress-dot',
+              iconSize: [150, 24],
+              iconAnchor: [6, 12]
+            })}
+            interactive={false}
+            zIndexOffset={200}
+          />
+        );
+      })()}
+    </>
+  );
+}
+
+// Component to render zoom-dependent red dot
+function ZoomDependentRedDot({ 
+  redDotPosition, 
+  redDotETA 
+}: { 
+  redDotPosition: { lat: number; lng: number } | null;
+  redDotETA: { days: number; hours: number; hoursRemainder: number } | null;
+}) {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
+
+  useEffect(() => {
+    const handleZoomChange = () => {
+      setCurrentZoom(map.getZoom());
+    };
+
+    map.on('zoomend', handleZoomChange);
+    return () => {
+      map.off('zoomend', handleZoomChange);
+    };
+  }, [map]);
+
+  // Hide red dot at zoom level 8 and above
+  if (currentZoom >= 8 || !redDotPosition) {
+    return null;
+  }
+
+  return (
+    <Marker
+      position={[redDotPosition.lat, redDotPosition.lng]}
+      icon={L.divIcon({
+        html: `
+          <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+          ">
+            <div style="
+              width: 12px;
+              height: 12px;
+              background: #ef4444;
+              border: 2px solid #ffffff;
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            "></div>
+            <div style="
+              background: rgba(0, 0, 0, 0.7);
+              color: #ffffff;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 8px;
+              font-weight: 600;
+              text-align: center;
+              white-space: nowrap;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+              line-height: 1.1;
+            ">
+              <div>Red Zone</div>
+              <div>100nm</div>
+              ${redDotETA ? `<div>ETA: ${redDotETA.days}d ${redDotETA.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+            </div>
+          </div>
+        `,
+        className: 'distance-marker',
+        iconSize: [60, 40],
+        iconAnchor: [30, 20]
+      })}
     />
   );
 }
@@ -878,6 +1413,8 @@ interface VesselMapProps {
       lng: number;
       origin: string | null;
       course: number | null;
+      speed_knots?: number | null;
+      speed_kmh?: number | null;
     }>;
   }>;
   currentTimelineFrame?: number;
@@ -1253,30 +1790,48 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         <MapRecenter vessels={vessels} />
         
         {/* Flotilla Center and ETA to Gaza */}
-        <FlotillaCenter vessels={vessels} />
+        <FlotillaCenter 
+          vessels={vessels} 
+          timelineData={timelineData}
+          currentTimelineFrame={currentTimelineFrame}
+        />
         
         {/* Vessel Pathways */}
         {showPathways && (() => {
-          // If we're in timeline mode with timeline data, show actual vessel pathways up to current frame
-          if (timelineData && currentTimelineFrame !== undefined && animatedVessels) {
-            return Object.entries(vesselPathways).map(([vesselName, pathway]) => {
-              if (pathway.length === 0) return null;
-              
-              const vessel = vessels.find(v => v.name === vesselName);
-              const color = getOriginColor(vessel?.origin || null);
-              
+          // If we have timeline data, use it for both markers and pathways to ensure alignment
+          if (timelineData && timelineData.length > 0) {
+            const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+              ? currentTimelineFrame
+              : timelineData.length - 1;
+
+            // Get all unique vessel names from timeline data
+            const vesselNames = new Set<string>();
+            for (let i = 0; i <= latestIndex; i++) {
+              const frame = timelineData[i];
+              if (frame && frame.vessels) {
+                frame.vessels.forEach(v => vesselNames.add(v.name));
+              }
+            }
+
+            return Array.from(vesselNames).map((vesselName) => {
               // Calculate actual pathway based on where the vessel has been in timeline
               const actualPathway = calculateActualVesselPathway(
                 vesselName,
                 timelineData,
-                currentTimelineFrame
+                latestIndex
               );
               
               if (actualPathway.length === 0) return null;
               
+              // Find vessel origin from timeline data or vessels table
+              const timelineVessel = timelineData[latestIndex]?.vessels.find(v => v.name === vesselName);
+              const vessel = vessels.find(v => v.name === vesselName);
+              const origin = timelineVessel?.origin || vessel?.origin || null;
+              const color = getOriginColor(origin);
+              
               return (
                 <Polyline
-                  key={`actual-pathway-${vesselName}`}
+                  key={`timeline-pathway-${vesselName}`}
                   positions={actualPathway}
                   color={color}
                   weight={2}
@@ -1286,7 +1841,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               );
             });
           } else {
-            // Static pathways for normal mode
+            // Fallback to static pathways when no timeline data
             return Object.entries(vesselPathways).map(([vesselName, pathway]) => {
               if (pathway.length === 0) return null;
               
@@ -1295,7 +1850,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               
               return (
                 <Polyline
-                  key={`pathway-${vesselName}`}
+                  key={`static-pathway-${vesselName}`}
                   positions={pathway}
                   color={color}
                   weight={2}
@@ -1315,7 +1870,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           points={measuringPoints}
           onRemovePoint={handleRemoveMeasuringPoint}
         />
-
+        
         {/* Vessel Markers */}
         {animatedVessels ? (
           // Show animated vessels from timeline
@@ -1439,8 +1994,214 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
             </React.Fragment>
           ))
         ) : (
-          // Show static vessels
-          vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => {
+          // Show static view: prefer latest timeline frame if available, else fallback to vessels table
+          ((() => {
+            if (timelineData && timelineData.length > 0) {
+              // Build last-known position per vessel across all frames up to the chosen index
+              const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+                ? currentTimelineFrame
+                : timelineData.length - 1;
+
+              const lastKnownByName = new Map<string, { name: string; lat: number; lng: number; origin: string | null; course: number | null; speed_knots?: number | null; speed_kmh?: number | null }>();
+              for (let i = 0; i <= latestIndex; i++) {
+                const frame = timelineData[i];
+                if (!frame || !frame.vessels) continue;
+                frame.vessels.forEach(v => {
+                  // Always overwrite so the latest encountered wins
+                  lastKnownByName.set(v.name, v);
+                });
+              }
+
+              // Enrich with speed data from vessels table
+              const enrichedVessels = Array.from(lastKnownByName.values()).map(vessel => {
+                const vesselFromTable = vessels.find(v => v.name === vessel.name);
+                return {
+                  ...vessel,
+                  speed_knots: vessel.speed_knots || vesselFromTable?.speed_knots || null,
+                  speed_kmh: vessel.speed_kmh || vesselFromTable?.speed_kmh || null
+                };
+              });
+
+              if (enrichedVessels.length > 0) {
+                return enrichedVessels.map((vessel) => {
+                  const attackStatus = attackStatuses[vessel.name];
+                  const vesselIcon = selectedVessel?.name === vessel.name && selectedVessel?.latitude === vessel.lat && selectedVessel?.longitude === vessel.lng
+                    ? createSelectedVesselIcon(vessel.origin)
+                    : createVesselIcon(vessel.origin);
+
+                  return (
+                    <React.Fragment key={`latest-known-${vessel.name}`}>
+                      {/* Vessel Marker from latest timeline frame */}
+                      {attackStatus ? (
+                        <Marker
+                          position={[vessel.lat, vessel.lng]}
+                          icon={createPulsingVesselIcon(
+                            attackStatus === 'attacked' ? 'red' : 'amber'
+                          )}
+                          zIndexOffset={1000}
+                          eventHandlers={{
+                            click: () => onVesselClick?.({ id: 0, name: vessel.name })
+                          }}
+                        >
+                          <Popup>
+                            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-red-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
+                              {/* Header */}
+                              <div className="bg-gradient-to-r from-red-600/20 to-red-500/10 border-b border-red-500/30 px-2 py-1 rounded-t-lg mb-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                                  <h3 className="text-red-400 font-mono text-xs font-bold tracking-wider uppercase">
+                                    VESSEL ATTACKED
+                                  </h3>
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="space-y-2">
+                                {/* Vessel Name */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">IDENTIFICATION</div>
+                                  <div className="text-xs font-bold text-white font-mono tracking-wide">{vessel.name}</div>
+                                </div>
+                                
+                                {/* Attack Status */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
+                                  <div className="flex items-center space-x-1">
+                                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                                    <span className="text-red-300 font-mono text-xs uppercase">{attackStatus}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      ) : (
+                        <Marker
+                          position={[vessel.lat, vessel.lng]}
+                          icon={vesselIcon}
+                          zIndexOffset={selectedVessel?.name === vessel.name ? 1000 : 0}
+                          eventHandlers={{
+                            click: () => onVesselClick?.({ id: 0, name: vessel.name })
+                          }}
+                        >
+                          <Popup>
+                            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-green-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
+                              {/* Header */}
+                              <div className="bg-gradient-to-r from-green-600/20 to-green-500/10 border-b border-green-500/30 px-2 py-1 rounded-t-lg mb-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                                  <h3 className="text-green-400 font-mono text-xs font-bold tracking-wider uppercase">
+                                    VESSEL STATUS
+                                  </h3>
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="space-y-2">
+                                {/* Vessel Name */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">IDENTIFICATION</div>
+                                  <div className="text-xs font-bold text-white font-mono tracking-wide">{vessel.name}</div>
+                                </div>
+                                
+                                {/* Status Grid */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-0.5">
+                                    <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">ORIGIN</div>
+                                    <div className="flex items-center space-x-1">
+                                      <div 
+                                        className="w-1.5 h-1.5 rounded-full border border-slate-600" 
+                                        style={{ backgroundColor: getOriginColor(vessel.origin) }}
+                                      ></div>
+                                      <span className="text-green-300 font-mono text-xs">{vessel.origin || 'UNKNOWN'}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-0.5">
+                                    <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
+                                    <div className="text-green-300 font-mono text-xs">ACTIVE</div>
+                                  </div>
+                                </div>
+
+                                {/* Technical Data */}
+                                <div className="space-y-1">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">NAVIGATION</div>
+                                  
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-0.5">
+                                      <div className="text-xs text-slate-500 font-mono">COURSE</div>
+                                      <div className="text-blue-300 font-mono text-xs">
+                                        {vessel.course ? `${vessel.course.toFixed(1)}°` : 'N/A'}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="space-y-0.5">
+                                      <div className="text-xs text-slate-500 font-mono">SPEED</div>
+                                      <div className="text-blue-300 font-mono text-xs">
+                                        {vessel.speed_knots ? `${vessel.speed_knots.toFixed(1)} kts` : 'N/A'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-0.5">
+                                    <div className="text-xs text-slate-500 font-mono">POSITION</div>
+                                    <div className="text-blue-300 font-mono text-xs">
+                                      {vessel.lat.toFixed(2)}, {vessel.lng.toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* System Status */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">SYSTEM</div>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-1">
+                                      <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></div>
+                                      <span className="text-green-400 font-mono text-xs">TRACKING</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                                      <span className="text-blue-400 font-mono text-xs">GPS</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="pt-0.5 border-t border-slate-700/50">
+                                  <div className="text-xs text-slate-500 font-mono text-center space-y-1">
+                                    <div>TIMELINE DATA</div>
+                                    {vessel.name === 'Shireen' && (
+                                      <div className="flex justify-center">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                          <Scale className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" /> LEGAL SUPPORT
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      )}
+
+                      {/* Course Direction Triangle for Static Vessels (latest known) */}
+                      {vessel.course && (
+                        <CourseTriangle
+                          vesselLat={vessel.lat}
+                          vesselLng={vessel.lng}
+                          course={vessel.course}
+                          origin={vessel.origin}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                });
+              }
+            }
+
+            // Fallback to vessels table positions
+            return vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => {
             const attackStatus = attackStatuses[vessel.name];
             const vesselIcon = selectedVessel?.id === vessel.id ? createSelectedVesselIcon(vessel.origin || null) : createVesselIcon(vessel.origin || null);
             
@@ -1642,6 +2403,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               </React.Fragment>
             );
           })
+          })())
         )}
 
         {/* Pulsing Location Markers */}
@@ -1681,13 +2443,44 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           }}
         />
 
-        {/* Gaza (Green Marker) */}
+        {/* Gaza (Green Marker) - positioned to the right of actual location */}
         <Marker 
-          position={[31.3547, 34.3088]} 
+          position={[31.522361, 34.432526]} 
           icon={createGreenPulsingIconWithLabel('Gaza', 'Palestine')}
           eventHandlers={{
             click: () => analytics.trackLocationMarkerClick('Gaza')
           }}
+        />
+        
+        {/* Pulsing dot at actual Gaza position */}
+        <Marker
+          position={[31.522361, 34.432526]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #10B981;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                animation: pulse 2s infinite;
+              ">
+                <style>
+                  @keyframes pulse {
+                    0% { opacity: 0.8; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                    100% { opacity: 0.8; transform: scale(1); }
+                  }
+                </style>
+              </div>
+            `,
+            className: 'gaza-pulsing-dot',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+          interactive={false}
+          zIndexOffset={300}
         />
 
         {/* Previous Interception Markers */}
@@ -1707,7 +2500,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   mission: 'Freedom Flotilla Coalition 2025',
                   cargo: 'Humanitarian aid',
                   location: 'International waters off Gaza',
-                  distance: 'Approximately 50-70 NM from Gaza',
+                  distance: 'Approximately 160 NM from Gaza',
                   outcome: 'Intercepted by Israeli forces',
                   casualties: 'No casualties reported',
                   status: 'Vessel and crew detained'
@@ -1715,6 +2508,36 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               });
             }
           }}
+        />
+        {/* Pulsing dot at actual Madleen position */}
+        <Marker
+          position={[31.95236, 32.38880]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #ff0000;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                animation: pulse 2s infinite;
+              ">
+                <style>
+                  @keyframes pulse {
+                    0% { opacity: 0.8; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                    100% { opacity: 0.8; transform: scale(1); }
+                  }
+                </style>
+              </div>
+            `,
+            className: 'gaza-pulsing-dot',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+          interactive={false}
+          zIndexOffset={300}
         />
 
         {/* Handala - 26-27 Jul 2025 */}
@@ -1733,7 +2556,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   mission: 'Freedom Flotilla Coalition 2025',
                   cargo: 'Humanitarian aid',
                   location: 'International waters off Gaza',
-                  distance: 'Approximately 50-70 NM from Gaza',
+                  distance: 'Approximately 40-70 NM from Gaza',
                   outcome: 'Intercepted by Israeli forces',
                   casualties: 'No casualties reported',
                   status: 'Vessel and crew detained'
@@ -1742,10 +2565,40 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
             }
           }}
         />
+        {/* Pulsing dot at actual Handala position */}
+        <Marker
+          position={[31.990316, 32.802406]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #ff0000;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                animation: pulse 2s infinite;
+              ">
+                <style>
+                  @keyframes pulse {
+                    0% { opacity: 0.8; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                    100% { opacity: 0.8; transform: scale(1); }
+                  }
+                </style>
+              </div>
+            `,
+            className: 'gaza-pulsing-dot',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+          interactive={false}
+          zIndexOffset={300}
+        />
 
         {/* Mavi Marmara - 31 May 2010 */}
         <Marker 
-          position={[32.64113, 33.56727]} 
+          position={[32.382807, 33.340217]} 
           icon={createRedInterceptionMarker('Mavi Marmara', '31 May 2010')}
           eventHandlers={{
             click: () => {
@@ -1754,7 +2607,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               setSelectedInterception({
                 name: 'Mavi Marmara',
                 date: '31 May 2010',
-                coordinates: [32.64113, 33.56727],
+                coordinates: [32.382807, 33.340217],
                 details: {
                   mission: 'Gaza Freedom Flotilla',
                   cargo: 'Humanitarian aid and construction materials',
@@ -1767,6 +2620,36 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               });
             }
           }}
+        />
+        {/* Pulsing dot at actual Mavi Marmara position */}
+        <Marker
+          position={[32.382807, 33.340217]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #ff0000;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                animation: pulse 2s infinite;
+              ">
+                <style>
+                  @keyframes pulse {
+                    0% { opacity: 0.8; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                    100% { opacity: 0.8; transform: scale(1); }
+                  }
+                </style>
+              </div>
+            `,
+            className: 'gaza-pulsing-dot',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+          interactive={false}
+          zIndexOffset={300}
         />
 
         {/* MV Rachel Corrie - 5 Jun 2010 (Estimated Location) */}
@@ -1793,6 +2676,36 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               });
             }
           }}
+        />
+        {/* Pulsing dot at actual Madleen position */}
+        <Marker
+          position={[31.6, 33.8]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                width: 12px;
+                height: 12px;
+                background: #ff0000;
+                border: 2px solid #ffffff;
+                border-radius: 50%;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                animation: pulse 2s infinite;
+              ">
+                <style>
+                  @keyframes pulse {
+                    0% { opacity: 0.8; transform: scale(1); }
+                    50% { opacity: 0.3; transform: scale(1.2); }
+                    100% { opacity: 0.8; transform: scale(1); }
+                  }
+                </style>
+              </div>
+            `,
+            className: 'gaza-pulsing-dot',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })}
+          interactive={false}
+          zIndexOffset={300}
         />
 
       </MapContainer>
@@ -1950,7 +2863,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
                                 {vessel.name || `Vessel ${vessel.id}`}
-                                {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen' || vessel.name === 'Summertime') && (
+                                {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen' || vessel.name === 'Summertime - Jong') && (
                                   <Eye 
                                     className="w-4 h-4 flex-shrink-0" 
                                     style={{ color: getOriginColor(vessel.origin || null) }}

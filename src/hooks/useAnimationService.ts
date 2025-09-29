@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import createClient from '@/lib/supabase/client';
 import { useUIStore } from '@/store/uiStore';
 import { requestDeduplicator } from '@/lib/requestDeduplicator';
+import { subscriptionManager } from '@/lib/subscriptionManager';
 
 // Types
 export interface TimelineFrame {
@@ -14,6 +15,8 @@ export interface TimelineFrame {
     lng: number;
     origin: string | null;
     course: number | null;
+    speed_knots?: number | null;
+    speed_kmh?: number | null;
   }>;
 }
 
@@ -122,7 +125,9 @@ export function useAnimationService() {
           lat: vessel.lat,
           lng: vessel.lng,
           origin: vessel.origin,
-          course: vessel.course || null // Include course data for heading visualization
+          course: vessel.course || null, // Include course data for heading visualization
+          speed_knots: vessel.speed_knots || null,
+          speed_kmh: vessel.speed_kmh || null
         }))
       }));
 
@@ -153,6 +158,18 @@ export function useAnimationService() {
     clearTimelineData();
     loadTimelineData();
   }, [debouncedTimeRange, clearTimelineData, loadTimelineData]);
+
+  // Subscribe to realtime updates on timeline_frames and reload on change
+  useEffect(() => {
+    const unsubscribe = subscriptionManager.subscribeToTimelineFrames(
+      () => {
+        // cache is already invalidated centrally; just reload
+        loadTimelineData();
+      },
+      'useAnimationService'
+    );
+    return unsubscribe;
+  }, [loadTimelineData]);
 
   return {
     timelineData,

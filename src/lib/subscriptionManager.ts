@@ -1,6 +1,7 @@
 "use client";
 
 import createClient from '@/lib/supabase/client';
+import { requestDeduplicator } from '@/lib/requestDeduplicator';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface Subscriber {
@@ -59,6 +60,21 @@ class SubscriptionManager {
             table: table,
           },
           () => {
+            // Invalidate relevant cached queries so refetches see fresh data
+            try {
+              // Map table names to cache key prefixes used by requestDeduplicator
+              const cachePrefixByTable: Record<string, string[]> = {
+                vessel_positions: ['vessel-positions:'],
+                timeline_frames: ['timeline-frames', 'timeline-frames:'],
+                vessels: ['vessels', 'vessels:'],
+              };
+
+              const prefixes = cachePrefixByTable[table] || [table];
+              prefixes.forEach((prefix) => requestDeduplicator.invalidateCache(prefix));
+            } catch (err) {
+              console.warn(`Cache invalidation failed for table ${table}:`, err);
+            }
+
             // Notify all subscribers for this table
             const tableSubscribers = this.subscribers.get(table);
             if (tableSubscribers) {
