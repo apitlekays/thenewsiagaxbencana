@@ -10,6 +10,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { computationCache } from '@/lib/computationCache';
 import { useMemo } from 'react';
+import MeasuringTool from './MeasuringTool';
+import MeasuringOverlay from './MeasuringOverlay';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -60,13 +62,14 @@ function createVesselIcon(origin: string | null, size: number = 25): L.Icon {
 }
 
 // Component to handle map clicks
-function MapClickHandler() {
+function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
   const map = useMap();
 
   useEffect(() => {
     const handleClick = (e: L.LeafletMouseEvent) => {
-      // Handle map click events if needed
-      void e.latlng; // Acknowledge coordinates are available
+      if (onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
     };
 
     map.on('click', handleClick);
@@ -74,7 +77,7 @@ function MapClickHandler() {
     return () => {
       map.off('click', handleClick);
     };
-  }, [map]);
+  }, [map, onMapClick]);
 
   return null;
 }
@@ -242,6 +245,10 @@ export default function VesselTrackerMap() {
   const { vessels, loading: vesselsLoading, error: vesselsError } = useVessels();
   const { vesselPositions, loading: positionsLoading, error: positionsError } = useAllVesselPositions();
   const [latestDataTimestamp, setLatestDataTimestamp] = useState<string | null>(null);
+
+  // Measuring tool state
+  const [isMeasuringEnabled, setIsMeasuringEnabled] = useState(false);
+  const [measuringPoints, setMeasuringPoints] = useState<Array<{ id: string; lat: number; lng: number; distance?: number }>>([]);
 
   // Timeline playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -430,6 +437,33 @@ export default function VesselTrackerMap() {
     return computationCache.computeVesselPathways(vesselPositions, dependencyHash);
   }, [vesselPositions]);
 
+  // Measuring tool handlers
+  const handleMeasuringToggle = () => {
+    setIsMeasuringEnabled(!isMeasuringEnabled);
+    if (isMeasuringEnabled) {
+      setMeasuringPoints([]);
+    }
+  };
+
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+    if (isMeasuringEnabled) {
+      const newPoint = {
+        id: `point-${Date.now()}-${Math.random()}`,
+        lat,
+        lng
+      };
+      setMeasuringPoints(prev => [...prev, newPoint]);
+    }
+  }, [isMeasuringEnabled]);
+
+  const handleRemoveMeasuringPoint = useCallback((pointId: string) => {
+    setMeasuringPoints(prev => prev.filter(point => point.id !== pointId));
+  }, []);
+
+  const handleClearMeasuringPoints = useCallback(() => {
+    setMeasuringPoints([]);
+  }, []);
+
 
 
   if (loading) {
@@ -463,9 +497,18 @@ export default function VesselTrackerMap() {
         <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-slate-300" />
       </Link>
 
+      {/* Measuring Tool */}
+      <MeasuringTool
+        isEnabled={isMeasuringEnabled}
+        onToggle={handleMeasuringToggle}
+        points={measuringPoints}
+        onClear={handleClearMeasuringPoints}
+        onRemovePoint={handleRemoveMeasuringPoint}
+      />
+
       {/* Latest Data Timestamp (Development Only) */}
       {process.env.NODE_ENV === 'development' && latestDataTimestamp && (
-      <div className="absolute top-4 right-4 z-[1000] bg-white/90 dark:bg-slate-800/90 rounded-lg p-3 shadow-lg border border-slate-200 dark:border-slate-700">
+      <div className="absolute top-4 right-20 z-[1000] bg-white/90 dark:bg-slate-800/90 rounded-lg p-3 shadow-lg border border-slate-200 dark:border-slate-700">
           <div className="text-xs text-slate-600 dark:text-slate-400">
             <div className="font-medium mb-1">Latest Data:</div>
             <div className="font-mono text-xs">
@@ -529,7 +572,7 @@ export default function VesselTrackerMap() {
         />
         
         {/* Map Click Handler */}
-        <MapClickHandler />
+        <MapClickHandler onMapClick={handleMapClick} />
         
         {/* Map Recenter Component */}
         <MapRecenter vessels={vessels} />
@@ -560,6 +603,12 @@ export default function VesselTrackerMap() {
           );
         })}
         
+        {/* Measuring Overlay */}
+        <MeasuringOverlay 
+          points={measuringPoints}
+          onRemovePoint={handleRemoveMeasuringPoint}
+        />
+
         {/* Vessel Markers - Show animated vessels if available, otherwise show static vessels */}
         {(animatedVessels.length > 0 ? animatedVessels : vessels.filter(vessel => vessel.latitude && vessel.longitude).map(vessel => ({
           name: vessel.name,

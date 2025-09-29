@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import { ArrowLeft, Ship, SquareArrowOutUpRight, LocateFixed, Info, Scale, Maximize, Minimize, Share2, Eye } from 'lucide-react';
 import Link from 'next/link';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVessels, useVesselPositions } from '@/hooks/queries/useVessels';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useAttackStatus } from '@/hooks/useAttackStatus';
@@ -11,6 +11,8 @@ import { createPulsingVesselIcon } from './PulsingVesselIcon';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { computationCache } from '@/lib/computationCache';
+import MeasuringTool from './MeasuringTool';
+import MeasuringOverlay from './MeasuringOverlay';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -119,13 +121,14 @@ function createSelectedVesselIcon(origin: string | null, size: number = 22): L.I
 }
 
 // Component to handle map clicks
-function MapClickHandler() {
+function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
   const map = useMap();
 
   useEffect(() => {
     const handleClick = (e: L.LeafletMouseEvent) => {
-      // Handle map click events if needed
-      void e.latlng; // Acknowledge coordinates are available
+      if (onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
     };
 
     map.on('click', handleClick);
@@ -133,7 +136,7 @@ function MapClickHandler() {
     return () => {
       map.off('click', handleClick);
     };
-  }, [map]);
+  }, [map, onMapClick]);
 
   return null;
 }
@@ -905,7 +908,38 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSharePopup, setShowSharePopup] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+
+  // Measuring tool state
+  const [isMeasuringEnabled, setIsMeasuringEnabled] = useState(false);
+  const [measuringPoints, setMeasuringPoints] = useState<Array<{ id: string; lat: number; lng: number; distance?: number }>>([]);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Measuring tool handlers
+  const handleMeasuringToggle = () => {
+    setIsMeasuringEnabled(!isMeasuringEnabled);
+    if (isMeasuringEnabled) {
+      setMeasuringPoints([]);
+    }
+  };
+
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+    if (isMeasuringEnabled) {
+      const newPoint = {
+        id: `point-${Date.now()}-${Math.random()}`,
+        lat,
+        lng
+      };
+      setMeasuringPoints(prev => [...prev, newPoint]);
+    }
+  }, [isMeasuringEnabled]);
+
+  const handleRemoveMeasuringPoint = useCallback((pointId: string) => {
+    setMeasuringPoints(prev => prev.filter(point => point.id !== pointId));
+  }, []);
+
+  const handleClearMeasuringPoints = useCallback(() => {
+    setMeasuringPoints([]);
+  }, []);
   
   // Get historical position data for selected vessel
   const { positions: selectedVesselPositions, loading: positionsLoading } = useVesselPositions(selectedVessel?.id);
@@ -1135,6 +1169,15 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         <ArrowLeft className="w-4 h-4" />
       </Link>
 
+      {/* Measuring Tool */}
+      <MeasuringTool
+        isEnabled={isMeasuringEnabled}
+        onToggle={handleMeasuringToggle}
+        points={measuringPoints}
+        onClear={handleClearMeasuringPoints}
+        onRemovePoint={handleRemoveMeasuringPoint}
+      />
+
       {/* Top Right Button Group */}
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
         {/* Fullscreen Button - Desktop Only */}
@@ -1204,7 +1247,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         />
         
         {/* Map Click Handler */}
-        <MapClickHandler />
+        <MapClickHandler onMapClick={handleMapClick} />
         
         {/* Map Recenter Component */}
         <MapRecenter vessels={vessels} />
@@ -1267,6 +1310,12 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         
         
         
+        {/* Measuring Overlay */}
+        <MeasuringOverlay 
+          points={measuringPoints}
+          onRemovePoint={handleRemoveMeasuringPoint}
+        />
+
         {/* Vessel Markers */}
         {animatedVessels ? (
           // Show animated vessels from timeline
