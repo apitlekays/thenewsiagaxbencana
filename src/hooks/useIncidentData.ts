@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { requestDeduplicator } from '@/lib/requestDeduplicator';
 
 export interface IncidentData {
   timestamp_utc: string;
@@ -24,22 +25,19 @@ export function useIncidentData() {
     try {
       setError(null);
       
-      const response = await fetch(
+      // Use deduplicated fetch for Google Sheets API
+      const csvText = await requestDeduplicator.deduplicateFetch(
         'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbFZIfnaSBO-35ApiFBiFZdjw8Ak6ifBLs9bRqDgLGC294-CksS6mpOXtPH3Ec-QY0eoQP7qN7b8TC/pub?output=csv',
         {
           method: 'GET',
           headers: {
             'Cache-Control': 'no-cache',
           },
-        }
+        },
+        2 * 60 * 1000 // 2 minutes TTL for Google Sheets data
       );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch incidents: ${response.status} ${response.statusText}`);
-      }
-
-      const csvText = await response.text();
-      const incidents = parseCSVToIncidents(csvText);
+      const incidents = parseCSVToIncidents(csvText as string);
       
       setIncidents(incidents);
       setLastFetch(new Date());

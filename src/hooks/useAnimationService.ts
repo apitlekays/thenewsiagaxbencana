@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import createClient from '@/lib/supabase/client';
+import { useUIStore } from '@/store/uiStore';
+import { requestDeduplicator } from '@/lib/requestDeduplicator';
 
 // Types
 export interface TimelineFrame {
@@ -27,24 +29,83 @@ export function useAnimationService() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Get time range filter selectively from UI store (reduces re-renders)
+  const timeRangeFilter = useUIStore(state => state.timeRangeFilter);
+
+  // Debounce ref to track timeout
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedTimeRange, setDebouncedTimeRange] = useState(timeRangeFilter);
+
+  // Debounce time range changes to prevent rapid successive API calls
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedTimeRange(timeRangeFilter);
+    }, 300);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [timeRangeFilter]);
+
+  // Calculate date threshold based on time range filter
+  const getDateThreshold = (range: '48h' | '7d' | '2w' | 'all'): string | null => {
+    if (range === 'all') return null;
+    
+    const now = Date.now();
+    let hoursBack = 48; // Default 48h
+    
+    switch (range) {
+      case '48h': hoursBack = 48; break;
+      case '7d': hoursBack = 7 * 24; break;
+      case '2w': hoursBack = 14 * 24; break;
+    }
+    
+    const thresholdDate = new Date(now - hoursBack * 60 * 60 * 1000);
+    return thresholdDate.toISOString();
+  };
+
   // Load timeline data from pre-processed timeline_frames table
   const loadTimelineData = useCallback(async () => {
-    if (timelineData.length > 0) return; // Already loaded
-
     try {
       setIsLoading(true);
       setError(null);
 
       const supabase = createClient();
 
-      // Fetch timeline frames from database
-      const { data: frames, error: fetchError } = await supabase
-        .from('timeline_frames')
-        .select('frame_timestamp, frame_index, vessels_data')
-        .order('frame_index', { ascending: true });
+      // Calculate date threshold for filtering
+      const dateThreshold = getDateThreshold(debouncedTimeRange);
+
+      // Use deduplicated query for timeline frames
+      const queryKey = `timeline-frames:${debouncedTimeRange}:${dateThreshold || 'all'}`;
+      
+      const { data: frames, error: fetchError } = await requestDeduplicator.deduplicateSupabaseQuery(
+        queryKey,
+        async () => {
+          // Build query with optional time filtering
+          let query = supabase
+            .from('timeline_frames')
+            .select('frame_timestamp, frame_index, vessels_data')
+            .order('frame_index', { ascending: true });
+
+          // Apply time range filter if not 'all'
+          if (dateThreshold) {
+            query = query.gte('frame_timestamp', dateThreshold);
+          }
+
+          const result = await query;
+          return { data: result.data, error: result.error };
+        },
+        1 * 60 * 1000 // 1 minute cache TTL for timeline frames
+      );
 
       if (fetchError) {
-        throw new Error(`Failed to fetch timeline frames: ${fetchError.message}`);
+        throw new Error(`Failed to fetch timeline frames: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
       }
 
       if (!frames || frames.length === 0) {
@@ -78,7 +139,7 @@ export function useAnimationService() {
     } finally {
       setIsLoading(false);
     }
-  }, [timelineData.length]);
+  }, [debouncedTimeRange]);
 
   // Clear timeline data
   const clearTimelineData = useCallback(() => {
@@ -86,6 +147,12 @@ export function useAnimationService() {
     setTimelineRange(null);
     setError(null);
   }, []);
+
+  // Watch for time range filter changes and reload timeline data
+  useEffect(() => {
+    clearTimelineData();
+    loadTimelineData();
+  }, [debouncedTimeRange, clearTimelineData, loadTimelineData]);
 
   return {
     timelineData,

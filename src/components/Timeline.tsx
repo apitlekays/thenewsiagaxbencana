@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, RotateCcw, Plane, Flame } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Pause, SkipBack, SkipForward, RotateCcw, Plane, Flame, Clock } from 'lucide-react';
 import packageJson from '../../package.json';
 import { IncidentData } from '../hooks/useIncidentData';
 import IncidentPopup from './IncidentPopup';
+import { useUIStore } from '@/store/uiStore';
+
+// Debounce hook to prevent rapid successive API calls
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 // Timeline data types
 export interface TimelineFrame {
@@ -54,22 +72,61 @@ export default function Timeline({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.5);
-  const playbackSpeedRef = useRef(1.5);
-  const timelineLengthRef = useRef(0);
-
+  
   // Incident popup state
   const [selectedIncident, setSelectedIncident] = useState<IncidentData | null>(null);
   const [isManualPopup, setIsManualPopup] = useState(false);
   const [isPlaybackPaused, setIsPlaybackPaused] = useState(false);
 
-  // Update refs when values change
+  // Refs for stable animation dependencies (after all state declarations)
+  const playbackSpeedRef = useRef(1.5);
+  const timelineLengthRef = useRef(0);
+  const timelineDataRef = useRef(timelineData);
+  const incidentsRef = useRef(incidents);
+  const isPlayingRef = useRef(isPlaying);
+  const isPlaybackPausedRef = useRef(isPlaybackPaused);
+
+  // Get time range filter selectively from UI store (reduces re-renders)
+  const timeRangeFilter = useUIStore(state => state.timeRangeFilter);
+  const setTimeRangeFilter = useUIStore(state => state.setTimeRangeFilter);
+
+  // Debounce time range changes to prevent rapid successive API calls
+  useDebounce(timeRangeFilter, 300); // Debounced time range used for prevention
+
+  // Time range options
+  const timeRangeOptions = useMemo(() => [
+    { value: '48h', label: '48 Hours' },
+    { value: '7d', label: '7 Days' },
+    { value: '2w', label: '2 Weeks' },
+    { value: 'all', label: 'All Time' },
+  ], []);
+
+  // Handle time range change with immediate UI update but debounced API calls
+  const handleTimeRangeChange = (newRange: '48h' | '7d' | '2w' | 'all') => {
+    setTimeRangeFilter(newRange);
+  };
+
+  // Update refs when values change (stable references for animation)
   useEffect(() => {
     playbackSpeedRef.current = playbackSpeed;
   }, [playbackSpeed]);
 
   useEffect(() => {
     timelineLengthRef.current = timelineData.length;
-  }, [timelineData.length]);
+    timelineDataRef.current = timelineData;
+  }, [timelineData.length, timelineData]);
+
+  useEffect(() => {
+    incidentsRef.current = incidents;
+  }, [incidents]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    isPlaybackPausedRef.current = isPlaybackPaused;
+  }, [isPlaybackPaused]);
 
   // Initialize timeline position to end when data loads
   useEffect(() => {
@@ -82,13 +139,16 @@ export default function Timeline({
   useEffect(() => {
     if (!isPlaying || isPlaybackPaused) return;
 
-    // Check if current frame has an incident
+    // Check if current frame has an incident (uses refs for stability)
     const getCurrentFrameIncident = (frameIndex: number): IncidentData | null => {
-      if (!timelineData || timelineData.length === 0 || incidents.length === 0) {
+      const currentTimelineData = timelineDataRef.current;
+      const currentIncidents = incidentsRef.current;
+      
+      if (!currentTimelineData || currentTimelineData.length === 0 || currentIncidents.length === 0) {
         return null;
       }
       
-      const currentFrame = timelineData[frameIndex];
+      const currentFrame = currentTimelineData[frameIndex];
       if (!currentFrame) {
         return null;
       }
@@ -98,7 +158,7 @@ export default function Timeline({
       // Find incidents that match the current frame time (within a small tolerance)
       const tolerance = 30 * 60 * 1000; // 30 minutes tolerance
       
-      for (const incident of incidents) {
+      for (const incident of currentIncidents) {
         const incidentTime = normalizeTimestamp(incident.timestamp_utc);
         const timeDiff = Math.abs(incidentTime - currentFrameTime);
         
@@ -136,7 +196,7 @@ export default function Timeline({
     }, 100); // 10fps for smoother, less jittery playback
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, isPlaybackPaused, incidents, timelineData]); // Include all dependencies
+  }, [isPlaying, isPlaybackPaused]); // Remove unstable dependencies
 
   // Handle end of timeline detection
   useEffect(() => {
@@ -334,20 +394,40 @@ export default function Timeline({
             </div>
           </div>
           
-          {/* Speed Control */}
+          {/* Controls Row */}
           <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs text-slate-400 hidden sm:inline">Speed:</span>
-            <select 
-              value={playbackSpeed} 
-              onChange={(e) => handleSpeedChange(Number(e.target.value))}
-              className="bg-slate-800 text-white text-xs px-1 sm:px-2 py-1 rounded border border-slate-600"
-            >
-              <option value={0.25}>0.25x</option>
-              <option value={0.5}>0.5x</option>
-              <option value={1}>1x</option>
-              <option value={2}>2x</option>
-              <option value={4}>4x</option>
-            </select>
+            {/* Time Range Control */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Clock className="w-3 h-3 text-slate-400" />
+              <select 
+                value={timeRangeFilter} 
+                onChange={(e) => handleTimeRangeChange(e.target.value as '48h' | '7d' | '2w' | 'all')}
+                className="bg-slate-800 text-white text-xs px-1 sm:px-2 py-1 rounded border border-slate-600 hover:bg-slate-700"
+                title="Select time range"
+              >
+                {timeRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Speed Control */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-xs text-slate-400 hidden sm:inline">Speed:</span>
+              <select 
+                value={playbackSpeed} 
+                onChange={(e) => handleSpeedChange(Number(e.target.value))}
+                className="bg-slate-800 text-white text-xs px-1 sm:px-2 py-1 rounded border border-slate-600 hover:bg-slate-700"
+              >
+                <option value={0.25}>0.25x</option>
+                <option value={0.5}>0.5x</option>
+                <option value={1}>1x</option>
+                <option value={2}>2x</option>
+                <option value={4}>4x</option>
+              </select>
+            </div>
           </div>
         </div>
 

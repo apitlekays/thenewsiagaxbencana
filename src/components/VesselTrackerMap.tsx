@@ -5,9 +5,11 @@ import { ArrowLeft, Ship, Clock, Navigation, Route, Play, Pause, SkipBack, SkipF
 import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useVessels } from '@/hooks/queries/useVessels';
-import { createClient } from '@supabase/supabase-js';
+import createClient from '@/lib/supabase/client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { computationCache } from '@/lib/computationCache';
+import { useMemo } from 'react';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -63,13 +65,8 @@ function MapClickHandler() {
 
   useEffect(() => {
     const handleClick = (e: L.LeafletMouseEvent) => {
-      const { lat, lng } = e.latlng;
-      console.log(`📍 Map clicked at coordinates:`, {
-        latitude: lat.toFixed(6),
-        longitude: lng.toFixed(6),
-        lat: lat,
-        lng: lng
-      });
+      // Handle map click events if needed
+      void e.latlng; // Acknowledge coordinates are available
     };
 
     map.on('click', handleClick);
@@ -135,10 +132,8 @@ function MapRecenter({ vessels }: { vessels: Array<{ latitude?: number | null; l
   return null; // This component doesn't render anything
 }
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy Supabase client initialization - will be created when first needed
+const getSupabase = () => createClient();
 
 // Custom hook to fetch all vessel positions grouped by vessel
 function useAllVesselPositions() {
@@ -163,10 +158,9 @@ function useAllVesselPositions() {
         setLoading(true);
         setError(null);
 
-        console.log('🔄 Fetching all vessel positions...');
 
         // Fetch ALL positions for all vessels (bypass Supabase's default 1000 limit)
-        const { data: allPositions, error: positionsError } = await supabase
+        const { data: allPositions, error: positionsError } = await getSupabase()
           .from('vessel_positions')
           .select('*')
           .order('timestamp_utc', { ascending: true })
@@ -177,7 +171,7 @@ function useAllVesselPositions() {
         }
 
         // Fetch all vessels to get the mapping
-        const { data: allVessels, error: vesselsError } = await supabase
+        const { data: allVessels, error: vesselsError } = await getSupabase()
           .from('vessels')
           .select('id, gsf_id, name')
           .eq('status', 'active');
@@ -188,7 +182,7 @@ function useAllVesselPositions() {
 
         // Create a mapping from gsf_id to vessel name
         const vesselMapping: Record<number, string> = {};
-        allVessels?.forEach(vessel => {
+        allVessels?.forEach((vessel: { gsf_id: number; name: string }) => {
           vesselMapping[vessel.gsf_id] = vessel.name;
         });
 
@@ -206,7 +200,18 @@ function useAllVesselPositions() {
           created_at: string;
         }>> = {};
         
-        allPositions?.forEach(position => {
+        allPositions?.forEach((position: {
+          id: number;
+          vessel_id: number;
+          gsf_vessel_id: number;
+          latitude: number;
+          longitude: number;
+          speed_kmh: number | null;
+          speed_knots: number | null;
+          course: number | null;
+          timestamp_utc: string;
+          created_at: string;
+        }) => {
           const vesselName = vesselMapping[position.gsf_vessel_id];
           if (vesselName) {
             if (!groupedPositions[vesselName]) {
@@ -216,10 +221,6 @@ function useAllVesselPositions() {
           }
         });
 
-        console.log(`📍 Fetched ${allPositions?.length || 0} total positions for ${Object.keys(groupedPositions).length} vessels`);
-        console.log(`🔍 Vessel mapping created for ${Object.keys(vesselMapping).length} vessels`);
-        console.log('📊 Positions per vessel:', Object.entries(groupedPositions).map(([name, positions]) => `${name}: ${positions.length}`));
-        console.log('🔍 Vessel mapping sample:', Object.entries(vesselMapping).slice(0, 5));
         
         setVesselPositions(groupedPositions);
       } catch (err) {
@@ -423,33 +424,12 @@ export default function VesselTrackerMap() {
     }
   };
 
-  // Process all vessel positions into pathway coordinates
-  const vesselPathways = Object.entries(vesselPositions).reduce((acc, [vesselName, positions]) => {
-    const validPositions = positions.filter(position => {
-      const lat = parseFloat(position.latitude.toString());
-      const lng = parseFloat(position.longitude.toString());
-      return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-    });
+  // Use memoized pathway computation with dependency tracking
+  const vesselPathways = useMemo(() => {
+    const dependencyHash = JSON.stringify(Object.keys(vesselPositions).sort());
+    return computationCache.computeVesselPathways(vesselPositions, dependencyHash);
+  }, [vesselPositions]);
 
-    acc[vesselName] = validPositions.map(position => [
-      parseFloat(position.latitude.toString()),
-      parseFloat(position.longitude.toString())
-    ] as [number, number]);
-
-    return acc;
-  }, {} as Record<string, [number, number][]>);
-
-  // Debug logging for all vessels
-  console.log('🔍 All Vessels Debug:', {
-    totalVessels: Object.keys(vesselPositions).length,
-    vesselPathways: Object.entries(vesselPathways).map(([name, pathway]) => ({
-      name,
-      positions: vesselPositions[name]?.length || 0,
-      pathwayLength: pathway.length
-    })),
-    loading: positionsLoading,
-    error: positionsError
-  });
 
 
   if (loading) {

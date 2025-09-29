@@ -16,8 +16,8 @@ export default function VesselTrackerMap() {
   const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService();
   const { incidents, error: incidentsError } = useIncidentData();
   
-  // Use the same Supabase client as the hooks
-  const supabase = createClient();
+  // Lazy Supabase client - will be created when first needed
+  const getSupabase = () => createClient();
   
   // Timeline state - always visible, load asynchronously
   const [animatedVessels, setAnimatedVessels] = useState<Array<{name: string, lat: number, lng: number, origin: string | null, course: number | null}> | null>(null);
@@ -52,7 +52,7 @@ export default function VesselTrackerMap() {
       if (frameIndex === timelineData.length - 1) {
         try {
           // Fetch latest vessel positions from database
-          const { data: latestVessels, error } = await supabase
+          const { data: latestVessels, error } = await getSupabase()
             .from('vessels')
             .select('name, latitude, longitude, origin, course')
             .eq('status', 'active')
@@ -92,7 +92,7 @@ export default function VesselTrackerMap() {
       
       setCurrentTimelineFrame(frameIndex);
     }
-  }, [isTimelinePlaying, timelineData.length, supabase]); // Keep dependency to ensure we have latest play state
+  }, [isTimelinePlaying, timelineData.length]); // Keep dependency to ensure we have latest play state
 
   // Handle timeline play state changes
   const handlePlayStateChange = useCallback((playing: boolean) => {

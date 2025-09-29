@@ -11,6 +11,7 @@ interface UIState {
   vesselStatusFilter: string | null;
   vesselTypeFilter: string | null;
   dateRange: { from: Date | null; to: Date | null };
+  timeRangeFilter: '48h' | '7d' | '2w' | 'all';
   
   // Dashboard state
   sidebarOpen: boolean;
@@ -23,6 +24,7 @@ interface UIState {
   setVesselStatusFilter: (status: string | null) => void;
   setVesselTypeFilter: (type: string | null) => void;
   setDateRange: (range: { from: Date | null; to: Date | null }) => void;
+  setTimeRangeFilter: (range: '48h' | '7d' | '2w' | 'all') => void;
   setSidebarOpen: (open: boolean) => void;
   setActiveTab: (tab: string) => void;
   resetFilters: () => void;
@@ -35,6 +37,7 @@ const initialState = {
   vesselStatusFilter: null,
   vesselTypeFilter: null,
   dateRange: { from: null, to: null },
+  timeRangeFilter: '48h' as const,
   sidebarOpen: true,
   activeTab: 'overview',
 };
@@ -50,12 +53,14 @@ export const useUIStore = create<UIState>()(
       setVesselStatusFilter: (status) => set({ vesselStatusFilter: status }),
       setVesselTypeFilter: (type) => set({ vesselTypeFilter: type }),
       setDateRange: (range) => set({ dateRange: range }),
+      setTimeRangeFilter: (range) => set({ timeRangeFilter: range }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setActiveTab: (tab) => set({ activeTab: tab }),
       resetFilters: () => set({
         vesselStatusFilter: null,
         vesselTypeFilter: null,
         dateRange: { from: null, to: null },
+        timeRangeFilter: '48h',
         selectedVesselId: null,
       }),
     }),

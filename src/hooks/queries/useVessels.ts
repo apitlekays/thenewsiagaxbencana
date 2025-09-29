@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import createClient from '@/lib/supabase/client';
+import { subscriptionManager } from '@/lib/subscriptionManager';
 
 export interface Vessel {
   id: number;
@@ -33,7 +34,14 @@ export interface VesselPosition {
   created_at: string;
 }
 
-const supabase = createClient();
+// Lazy Supabase client - will be created when first needed
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+const getSupabase = () => {
+  if (!supabaseClient) {
+    supabaseClient = createClient();
+  }
+  return supabaseClient;
+};
 
 export function useVessels() {
   const [vessels, setVessels] = useState<Vessel[]>([]);
@@ -41,10 +49,10 @@ export function useVessels() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const fetchVessels = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
+      const fetchVessels = async () => {
+        try {
+          setLoading(true);
+          const { data, error } = await getSupabase()
           .from('vessels')
           .select('*')
           .eq('status', 'active')
@@ -61,27 +69,13 @@ export function useVessels() {
 
     fetchVessels();
 
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('vessels-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vessels',
-          filter: 'status=eq.active',
-        },
-        (payload) => {
-          console.log('Vessel change received:', payload);
-          fetchVessels(); // Refetch on changes
-        }
-      )
-      .subscribe();
+    // Use centralized subscription manager
+    const unsubscribe = subscriptionManager.subscribeToVessels(
+      fetchVessels,
+      'useVessels'
+    );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return unsubscribe;
   }, []);
 
   return {
@@ -103,7 +97,7 @@ export function useVesselPositions(vesselId?: number) {
   const fetchPositions = useCallback(async () => {
     try {
       setLoading(true);
-      let query = supabase
+      let query = getSupabase()
         .from('vessel_positions')
         .select('*')
         .order('timestamp_utc', { ascending: false });
@@ -126,26 +120,13 @@ export function useVesselPositions(vesselId?: number) {
   useEffect(() => {
     fetchPositions();
 
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('vessel-positions-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vessel_positions',
-        },
-        (payload) => {
-          console.log('Vessel position change received:', payload);
-          fetchPositions(); // Refetch on changes
-        }
-      )
-      .subscribe();
+    // Use centralized subscription manager
+    const unsubscribe = subscriptionManager.subscribeToVesselPositions(
+      fetchPositions,
+      `useVesselPositions-${vesselId || 'all'}`
+    );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return unsubscribe;
   }, [vesselId, fetchPositions]);
 
   return {
@@ -163,15 +144,13 @@ export function useAllVesselPositions() {
   const fetchAllPositions = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching all vessel positions...');
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('vessel_positions')
         .select('*')
         .order('timestamp_utc', { ascending: true })
         .limit(50000); // Explicitly set high limit to get all positions
 
       if (error) throw error;
-      console.log(`✅ Fetched ${data?.length || 0} positions`);
       setPositions(data || []);
     } catch (err) {
       console.error('❌ Error fetching positions:', err);
@@ -184,26 +163,13 @@ export function useAllVesselPositions() {
   useEffect(() => {
     fetchAllPositions();
 
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('all-vessel-positions-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vessel_positions',
-        },
-        (payload) => {
-          console.log('All vessel position change received:', payload);
-          fetchAllPositions(); // Refetch on changes
-        }
-      )
-      .subscribe();
+    // Use centralized subscription manager
+    const unsubscribe = subscriptionManager.subscribeToVesselPositions(
+      fetchAllPositions,
+      'useAllVesselPositions'
+    );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return unsubscribe;
   }, []);
 
   return {

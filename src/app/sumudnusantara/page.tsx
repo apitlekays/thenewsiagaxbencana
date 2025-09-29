@@ -1,5 +1,6 @@
 import { Metadata, Viewport } from 'next';
 import SumudNusantaraClient from './SumudNusantaraClient';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Sumud Nusantara Flotilla Tracker - Real-time Vessel Tracking',
@@ -79,8 +80,8 @@ export const viewport: Viewport = {
 
 export default function SumudNusantaraPage() {
   return (
-    <>
+    <ErrorBoundary>
       <SumudNusantaraClient />
-    </>
+    </ErrorBoundary>
   );
 }

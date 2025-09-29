@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { requestDeduplicator } from '@/lib/requestDeduplicator';
 
 export interface AttackStatus {
   vessel_name: string;
@@ -21,25 +22,20 @@ export function useAttackStatus() {
     try {
       setError(null);
       
-      // Fetch data from Google Sheet
-      const response = await fetch(
+      // Use deduplicated fetch for Google Sheets API
+      const csvText = await requestDeduplicator.deduplicateFetch(
         'https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXd6UHeb_ayDrGm_G61cmHMsAZcjOPbM8yfwXQdymVxCBOomvhdTFsl3gEVnH5l6T4WUQGIamgEO/pub?output=csv',
         {
           method: 'GET',
           headers: {
             'Accept': 'text/csv',
           },
-        }
+        },
+        3 * 60 * 1000 // 3 minutes TTL for attack status data
       );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch attack status: ${response.status} ${response.statusText}`);
-      }
-
-      const csvText = await response.text();
       
       // Parse CSV data
-      const lines = csvText.trim().split('\n');
+      const lines = (csvText as string).trim().split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       
       // Find header indices
