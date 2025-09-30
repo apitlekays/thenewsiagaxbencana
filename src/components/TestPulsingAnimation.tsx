@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useVessels } from '@/hooks/queries/useVessels';
 import { useAnimationService } from '@/hooks/useAnimationService';
 import { computationCache } from '@/lib/computationCache';
@@ -13,51 +13,149 @@ export default function TestPulsingAnimation() {
   const { vessels } = useVessels();
   const { timelineData } = useAnimationService();
 
+  // Memoize vessel processing and calculations
+  const estimationData = useMemo(() => {
+    // Use the same logic as FlotillaCenter to determine data source and forward vessel
+    let validVessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }> = [];
+    
+    if (timelineData && timelineData.length > 0) {
+      // Use timeline data to get latest positions (same as FlotillaCenter)
+      const latestIndex = timelineData.length - 1;
+
+      // Build last-known position per vessel across all frames up to the latest index
+      const lastKnownByName = new Map<string, { name: string; lat: number; lng: number; origin: string | null; course: number | null; speed_knots?: number | null; speed_kmh?: number | null }>();
+      for (let i = 0; i <= latestIndex; i++) {
+        const frame = timelineData[i];
+        if (!frame || !frame.vessels) continue;
+        frame.vessels.forEach(v => {
+          // Always overwrite so the latest encountered wins
+          lastKnownByName.set(v.name, v);
+        });
+      }
+
+      // Convert timeline data to vessels format for compatibility
+      // Enrich with speed data from vessels table (same as VesselMap.tsx)
+      validVessels = Array.from(lastKnownByName.values()).map(vessel => {
+        const vesselFromTable = vessels.find(v => v.name === vessel.name);
+        return {
+          name: vessel.name,
+          latitude: vessel.lat,
+          longitude: vessel.lng,
+          speed_knots: vessel.speed_knots || vesselFromTable?.speed_knots || null
+        };
+      });
+    } else {
+      // Fallback to vessels table data (same as FlotillaCenter)
+      validVessels = vessels.filter(vessel => 
+        vessel.latitude && vessel.longitude && 
+        !isNaN(parseFloat(vessel.latitude.toString())) && 
+        !isNaN(parseFloat(vessel.longitude.toString()))
+      );
+    }
+
+    if (validVessels.length === 0) {
+      return null;
+    }
+
+    // Apply the same outlier filtering logic as FlotillaCenter
+    const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
+
+    // Haversine distance calculation (same as FlotillaCenter)
+    const calculateDistanceBetweenVessels = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+      const R = 3440.065; // Earth's radius in nautical miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Find the largest cluster based on geographic proximity between vessels
+    const CLUSTER_THRESHOLD = 30; // 30nm - vessels within this distance are in same cluster
+    const clustered = new Set<number>();
+    const clusters: Array<typeof vesselDistances> = [];
+
+    for (let i = 0; i < vesselDistances.length; i++) {
+      if (clustered.has(i)) continue;
+      
+      const cluster: typeof vesselDistances = [vesselDistances[i]];
+      clustered.add(i);
+      
+      // Find all vessels within CLUSTER_THRESHOLD of any vessel in current cluster
+      for (let j = 0; j < vesselDistances.length; j++) {
+        if (clustered.has(j)) continue;
+        
+        const vessel1 = vesselDistances[i].vessel;
+        const vessel2 = vesselDistances[j].vessel;
+        
+        // Calculate distance between the two vessels
+        const vesselToVesselDistance = calculateDistanceBetweenVessels(
+          parseFloat(vessel1.latitude!.toString()),
+          parseFloat(vessel1.longitude!.toString()),
+          parseFloat(vessel2.latitude!.toString()),
+          parseFloat(vessel2.longitude!.toString())
+        );
+        
+        if (vesselToVesselDistance <= CLUSTER_THRESHOLD) {
+          cluster.push(vesselDistances[j]);
+          clustered.add(j);
+        }
+      }
+      
+      clusters.push(cluster);
+    }
+    
+    // Find the largest cluster (main group)
+    const mainGroupVessels = clusters.reduce((largest, current) => 
+      current.length > largest.length ? current : largest
+    , clusters[0]);
+
+    // Sort main group by distance to Gaza to find forward-most vessel
+    mainGroupVessels.sort((a, b) => a.distance - b.distance);
+
+    // From the main group, find the forward-most vessel (leading vessel, closest to Gaza)
+    const forwardVessel = mainGroupVessels[0]?.vessel || null;
+    const distance = forwardVessel ? mainGroupVessels[0].distance : null;
+
+    // Calculate average speed from main group vessels only
+    const mainGroupVesselsWithSpeed = mainGroupVessels.filter(vd => {
+      const vessel = vd.vessel as { speed_knots?: number | null };
+      return vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0;
+    });
+
+    const averageSpeed = mainGroupVesselsWithSpeed.length > 0 
+      ? mainGroupVesselsWithSpeed.reduce((sum, item) => {
+          const vessel = item.vessel as { speed_knots?: number | null };
+          const speed = vessel.speed_knots;
+          return sum + (parseFloat(speed?.toString() || '0'));
+        }, 0) / mainGroupVesselsWithSpeed.length
+      : 0;
+    
+    // Calculate ETA
+    let eta: { days: number; hours: number } | null = null;
+    if (distance && averageSpeed > 0) {
+      const hours = distance / averageSpeed;
+      const days = Math.floor(hours / 24);
+      const hoursRemainder = Math.floor(hours % 24);
+      eta = { days, hours: hoursRemainder };
+    }
+
+    return {
+      distance,
+      eta,
+      averageSpeed
+    };
+  }, [vessels, timelineData]);
+
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
   if (!isVisible) return null;
 
-  // Use the same logic as FlotillaCenter to determine data source and forward vessel
-  let validVessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }> = [];
-  
-  if (timelineData && timelineData.length > 0) {
-    // Use timeline data to get latest positions (same as FlotillaCenter)
-    const latestIndex = timelineData.length - 1;
-
-    // Build last-known position per vessel across all frames up to the latest index
-    const lastKnownByName = new Map<string, { name: string; lat: number; lng: number; origin: string | null; course: number | null; speed_knots?: number | null; speed_kmh?: number | null }>();
-    for (let i = 0; i <= latestIndex; i++) {
-      const frame = timelineData[i];
-      if (!frame || !frame.vessels) continue;
-      frame.vessels.forEach(v => {
-        // Always overwrite so the latest encountered wins
-        lastKnownByName.set(v.name, v);
-      });
-    }
-
-    // Convert timeline data to vessels format for compatibility
-    // Enrich with speed data from vessels table (same as VesselMap.tsx)
-    validVessels = Array.from(lastKnownByName.values()).map(vessel => {
-      const vesselFromTable = vessels.find(v => v.name === vessel.name);
-      return {
-        name: vessel.name,
-        latitude: vessel.lat,
-        longitude: vessel.lng,
-        speed_knots: vessel.speed_knots || vesselFromTable?.speed_knots || null
-      };
-    });
-  } else {
-    // Fallback to vessels table data (same as FlotillaCenter)
-    validVessels = vessels.filter(vessel => 
-      vessel.latitude && vessel.longitude && 
-      !isNaN(parseFloat(vessel.latitude.toString())) && 
-      !isNaN(parseFloat(vessel.longitude.toString()))
-    );
-  }
-
-  if (validVessels.length === 0) {
+  if (!estimationData) {
     return (
       <div className="absolute top-20 left-4 z-[1000] space-y-3">
         {/* Vessel Status Box */}
@@ -117,48 +215,8 @@ export default function TestPulsingAnimation() {
     );
   }
 
-  // Apply the same outlier filtering logic as FlotillaCenter
-  const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
-
-  // Sort by distance to find the main group
-  vesselDistances.sort((a, b) => a.distance - b.distance);
-
-  // Find the main group by looking for vessels within a reasonable distance of each other
-  // Use the median distance as a reference point for the main group
-  const medianIndex = Math.floor(vesselDistances.length / 2);
-  const medianDistance = vesselDistances[medianIndex].distance;
-  
-  // Consider vessels within 50nm of the median as part of the main group
-  const mainGroupVessels = vesselDistances.filter(vd => 
-    Math.abs(vd.distance - medianDistance) <= 50
-  );
-
-  // From the main group, find the one closest to Gaza (most forward)
-  const forwardVessel = mainGroupVessels[0]?.vessel || null;
-  const distance = forwardVessel ? mainGroupVessels[0].distance : null;
-
-  // Calculate average speed from main group vessels only
-  const mainGroupVesselsWithSpeed = mainGroupVessels.filter(vd => {
-    const vessel = vd.vessel as { speed_knots?: number | null };
-    return vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0;
-  });
-
-  const averageSpeed = mainGroupVesselsWithSpeed.length > 0 
-    ? mainGroupVesselsWithSpeed.reduce((sum, item) => {
-        const vessel = item.vessel as { speed_knots?: number | null };
-        const speed = vessel.speed_knots;
-        return sum + (parseFloat(speed?.toString() || '0'));
-      }, 0) / mainGroupVesselsWithSpeed.length
-    : 0;
-  
-  // Calculate ETA
-  let eta: { days: number; hours: number } | null = null;
-  if (distance && averageSpeed > 0) {
-    const hours = distance / averageSpeed;
-    const days = Math.floor(hours / 24);
-    const hoursRemainder = Math.floor(hours % 24);
-    eta = { days, hours: hoursRemainder };
-  }
+  // Extract data from memoized calculations
+  const { distance, eta, averageSpeed } = estimationData;
 
   return (
     <div className="absolute top-20 left-4 z-[1000] space-y-3">

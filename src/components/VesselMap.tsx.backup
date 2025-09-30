@@ -15,6 +15,30 @@ import MeasuringTool from './MeasuringTool';
 import MeasuringOverlay from './MeasuringOverlay';
 import { ZoomProvider, useZoom } from '@/contexts/ZoomContext';
 
+// Import extracted components
+import MapControls from './map/MapControls';
+import MapClickHandler from './map/MapClickHandler';
+import FlotillaCenter from './map/FlotillaCenter';
+import CourseTriangle from './map/CourseTriangle';
+import ZoomDependentCircles from './map/ZoomDependentCircles';
+import ZoomDependentProgressDots from './map/ZoomDependentProgressDots';
+import ZoomDependentRedDot from './map/ZoomDependentRedDot';
+import MapRecenter from './map/MapRecenter';
+import AnimatedCount from './map/AnimatedCount';
+
+// Import extracted utilities
+import { 
+  getOriginColor, 
+  createVesselIcon, 
+  createCourseTriangleIcon, 
+  createSelectedVesselIcon,
+  createPulsingLocationIconWithLabel,
+  createGreenPulsingIconWithLabel,
+  createRedInterceptionMarker,
+  ORIGIN_COLORS 
+} from './map/utils/iconUtils';
+import { calculateActualVesselPathway } from './map/utils/calculations';
+
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -23,71 +47,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Color scheme for vessel origins
-const ORIGIN_COLORS: Record<string, string> = {
-  'barcelona': '#3b82f6',    // Blue
-  'sicily': '#8b5cf6',       // Purple
-  'tunis': '#10b981',        // Green
-  'greece': '#f59e0b',       // Orange
-  'libya': '#ef4444',        // Red
-  'malta': '#06b6d4',        // Cyan
-  'unknown': '#6b7280',      // Gray for null/unknown origins
-};
+// Utility functions moved to ./map/utils/iconUtils.ts
 
-// Function to get color based on origin
-function getOriginColor(origin: string | null): string {
-  if (!origin) return ORIGIN_COLORS['unknown'];
-  const normalizedOrigin = origin.toLowerCase();
-  return ORIGIN_COLORS[normalizedOrigin] || ORIGIN_COLORS['unknown'];
-}
+// Icon creation functions moved to ./map/utils/iconUtils.ts
 
-// Function to create vessel icon using custom ship SVG
-function createVesselIcon(origin: string | null, size: number = 22): L.Icon {
-  const color = getOriginColor(origin);
-  
-  return new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Vessel circle -->
-        <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-        <!-- Ship icon -->
-        <g transform="translate(${size/2 - 6}, ${size/2 - 6})">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-            <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-            <g id="SVGRepo_iconCarrier">
-              <path fill-rule="evenodd" clip-rule="evenodd" d="M10 1C8.89543 1 8 1.89543 8 3V6H6C4.89543 6 4 6.89543 4 8V13C4 13.0335 4.00164 13.0666 4.00486 13.0993C3.72437 13.0809 3.43557 13.0509 3.13755 13.0095C2.78898 12.9611 2.44062 13.0995 2.22027 13.3739C1.99992 13.6483 1.94003 14.0183 2.06256 14.3482L4.53315 20.9998L4.49998 21C3.45179 21 2.99998 20.3556 2.99998 20C2.99998 19.4477 2.55227 19 1.99998 19C1.4477 19 0.999985 19.4477 0.999985 20C0.999985 21.8536 2.78675 23 4.49998 23C5.40393 23 6.32835 22.6808 6.99999 22.1071C7.67162 22.6808 8.59604 23 9.49998 23C10.4039 23 11.3283 22.6808 12 22.1071C12.6716 22.6808 13.596 23 14.5 23C15.4039 23 16.3283 22.6808 17 22.1071C17.6716 22.6808 18.596 23 19.5 23C21.2132 23 23 21.8536 23 20C23 19.4477 22.5523 19 22 19C21.4477 19 21 19.4477 21 20C21 20.3556 20.5482 21 19.5 21L19.4668 20.9998L21.9374 14.3482C22.0599 14.0183 22 13.6483 21.7797 13.3739C21.5594 13.0995 21.211 12.9611 20.8624 13.0095C20.5644 13.0509 20.2756 13.0809 19.9951 13.0993C19.9984 13.0666 20 13.0335 20 13V8C20 6.89543 19.1046 6 18 6H16V3C16 1.89543 15.1046 1 14 1H10ZM14 6V3H10V6H14ZM9 8H6V13L5.99997 13.0079C6.50436 12.9192 6.98319 12.7776 7.44451 12.5804C8.70387 12.0423 9.92703 11.05 11.2082 9.3892C11.3975 9.14376 11.69 9 12 9C12.31 9 12.6024 9.14376 12.7918 9.3892C14.0729 11.05 15.2961 12.0423 16.5555 12.5804C17.0168 12.7776 17.4956 12.9192 18 13.0079L18 13V8H15H9ZM17.8807 19.526L19.5174 15.1195C18.2039 15.1386 16.9623 14.9293 15.7695 14.4196C14.4111 13.839 13.1782 12.8954 12 11.5693C10.8218 12.8954 9.5889 13.839 8.23046 14.4196C7.03765 14.9293 5.79609 15.1386 4.48254 15.1195L6.11925 19.526C6.28815 19.2128 6.61922 19 6.99998 19C7.55227 19 7.99998 19.4477 7.99998 20C7.99998 20.3556 8.45179 21 9.49998 21C10.5482 21 11 20.3556 11 20C11 19.4477 11.4477 19 12 19C12.5523 19 13 19.4477 13 20C13 20.3556 13.4518 21 14.5 21C15.5482 21 16 20.3556 16 20C16 19.4477 16.4477 19 17 19C17.3808 19 17.7118 19.2128 17.8807 19.526Z" fill="#ffffff"/>
-            </g>
-          </svg>
-        </g>
-      </svg>
-    `),
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2],
-    popupAnchor: [0, -size/2],
-  });
-}
-
-// Function to create course direction triangle icon
-function createCourseTriangleIcon(origin: string | null, course: number, size: number = 16): L.Icon {
-  const color = getOriginColor(origin);
-  
-  return new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g transform="rotate(${course} ${size/2} ${size/2})">
-          <polygon 
-            points="${size/2},2 ${size/2 - size/3},${size - 2} ${size/2 + size/3},${size - 2}"
-            fill="${color}" 
-          />
-        </g>
-      </svg>
-    `),
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2],
-    popupAnchor: [0, -size/2],
-  });
-}
+// Course triangle icon function moved to ./map/utils/iconUtils.ts
 
 // Function to create selected vessel icon with green border and pulsing effect
 function createSelectedVesselIcon(origin: string | null, size: number = 22): L.Icon {
@@ -121,57 +85,10 @@ function createSelectedVesselIcon(origin: string | null, size: number = 22): L.I
   });
 }
 
-// Component to handle map clicks
-function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
-  const map = useMap();
+// MapClickHandler component moved to ./map/MapClickHandler.tsx
 
-  useEffect(() => {
-    const handleClick = (e: L.LeafletMouseEvent) => {
-      const { lat, lng } = e.latlng;
-      console.log(`Map clicked at: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-      
-      if (onMapClick) {
-        onMapClick(lat, lng);
-      }
-    };
-
-    map.on('click', handleClick);
-
-    return () => {
-      map.off('click', handleClick);
-    };
-  }, [map, onMapClick]);
-
-  return null;
-}
-
-// Component to calculate and display flotilla forward vessel, distance to Gaza, and ETA
-function FlotillaCenter({ 
-  vessels, 
-  timelineData, 
-  currentTimelineFrame 
-}: { 
-  vessels: Array<{ latitude?: number | null; longitude?: number | null; speed_knots?: number | null; name: string }>;
-  timelineData?: Array<{
-    timestamp: string;
-    vessels: Array<{
-      name: string;
-      lat: number;
-      lng: number;
-      origin: string | null;
-      course: number | null;
-      speed_knots?: number | null;
-      speed_kmh?: number | null;
-    }>;
-  }>;
-  currentTimelineFrame?: number;
-}) {
-  const [flotillaData, setFlotillaData] = useState<{
-    forwardVessel: { lat: number; lng: number; name: string } | null;
-    distance: number | null;
-    eta: { days: number; hours: number } | null;
-    averageSpeed: number | null;
-  } | null>(null);
+// FlotillaCenter component moved to ./map/FlotillaCenter.tsx
+// FlotillaCenter function body moved to ./map/FlotillaCenter.tsx
 
   // Gaza port coordinates - memoized for performance
   const GAZA_PORT = useMemo(() => ({ lat: 31.522727, lng: 34.431667 }), []);
@@ -261,50 +178,20 @@ function FlotillaCenter({
     // Use cached distance calculation
     const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
 
-    // Find the largest cluster based on geographic proximity between vessels
-    const CLUSTER_THRESHOLD = 30; // 30nm - vessels within this distance are in same cluster
-    const clustered = new Set<number>();
-    const clusters: Array<typeof vesselDistances> = [];
+    // Sort by distance to find the main group
+    vesselDistances.sort((a, b) => a.distance - b.distance);
 
-    for (let i = 0; i < vesselDistances.length; i++) {
-      if (clustered.has(i)) continue;
-      
-      const cluster: typeof vesselDistances = [vesselDistances[i]];
-      clustered.add(i);
-      
-      // Find all vessels within CLUSTER_THRESHOLD of any vessel in current cluster
-      for (let j = 0; j < vesselDistances.length; j++) {
-        if (clustered.has(j)) continue;
-        
-        const vessel1 = vesselDistances[i].vessel;
-        const vessel2 = vesselDistances[j].vessel;
-        
-        // Calculate distance between the two vessels
-        const vesselToVesselDistance = calculateDistance(
-          parseFloat(vessel1.latitude!.toString()),
-          parseFloat(vessel1.longitude!.toString()),
-          parseFloat(vessel2.latitude!.toString()),
-          parseFloat(vessel2.longitude!.toString())
-        );
-        
-        if (vesselToVesselDistance <= CLUSTER_THRESHOLD) {
-          cluster.push(vesselDistances[j]);
-          clustered.add(j);
-        }
-      }
-      
-      clusters.push(cluster);
-    }
+    // Find the main group by looking for vessels within a reasonable distance of each other
+    // Use the median distance as a reference point for the main group
+    const medianIndex = Math.floor(vesselDistances.length / 2);
+    const medianDistance = vesselDistances[medianIndex].distance;
     
-    // Find the largest cluster (main group)
-    const mainGroupVessels = clusters.reduce((largest, current) => 
-      current.length > largest.length ? current : largest
-    , clusters[0]);
+    // Consider vessels within 50nm of the median as part of the main group
+    const mainGroupVessels = vesselDistances.filter(vd => 
+      Math.abs(vd.distance - medianDistance) <= 50
+    );
 
-    // Sort main group by distance to Gaza to find forward-most vessel
-    mainGroupVessels.sort((a, b) => a.distance - b.distance);
-
-    // From the main group, find the forward-most vessel (leading vessel, closest to Gaza)
+    // From the main group, find the one closest to Gaza (most forward)
     const forwardVessel = mainGroupVessels[0].vessel;
 
     // Calculate distance to Gaza port from the forward vessel
