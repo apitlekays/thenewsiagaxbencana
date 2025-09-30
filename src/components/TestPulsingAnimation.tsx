@@ -60,62 +60,27 @@ export default function TestPulsingAnimation() {
     // Apply the same outlier filtering logic as FlotillaCenter
     const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
 
-    // Haversine distance calculation (same as FlotillaCenter)
-    const calculateDistanceBetweenVessels = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-      const R = 3440.065; // Earth's radius in nautical miles
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
+    // Note: direct vessel-to-vessel distance not needed in histogram approach
 
-    // Find the largest cluster based on geographic proximity between vessels
-    const CLUSTER_THRESHOLD = 30; // 30nm - vessels within this distance are in same cluster
-    const clustered = new Set<number>();
-    const clusters: Array<typeof vesselDistances> = [];
+    // Robust main-group detection using distance-to-Gaza histogram
+    const BIN_SIZE_NM = 10; // 10nm bins
+    const binCounts = new Map<number, number>();
+    vesselDistances.forEach(vd => {
+      const bin = Math.floor(vd.distance / BIN_SIZE_NM);
+      binCounts.set(bin, (binCounts.get(bin) || 0) + 1);
+    });
 
-    for (let i = 0; i < vesselDistances.length; i++) {
-      if (clustered.has(i)) continue;
-      
-      const cluster: typeof vesselDistances = [vesselDistances[i]];
-      clustered.add(i);
-      
-      // Find all vessels within CLUSTER_THRESHOLD of any vessel in current cluster
-      for (let j = 0; j < vesselDistances.length; j++) {
-        if (clustered.has(j)) continue;
-        
-        const vessel1 = vesselDistances[i].vessel;
-        const vessel2 = vesselDistances[j].vessel;
-        
-        // Calculate distance between the two vessels
-        const vesselToVesselDistance = calculateDistanceBetweenVessels(
-          parseFloat(vessel1.latitude!.toString()),
-          parseFloat(vessel1.longitude!.toString()),
-          parseFloat(vessel2.latitude!.toString()),
-          parseFloat(vessel2.longitude!.toString())
-        );
-        
-        if (vesselToVesselDistance <= CLUSTER_THRESHOLD) {
-          cluster.push(vesselDistances[j]);
-          clustered.add(j);
-        }
+    let mainBin = 0;
+    let mainBinCount = -1;
+    binCounts.forEach((count, bin) => {
+      if (count > mainBinCount) {
+        mainBinCount = count;
+        mainBin = bin;
       }
-      
-      clusters.push(cluster);
-    }
-    
-    // Find the largest cluster (main group)
-    const mainGroupVessels = clusters.reduce((largest, current) => 
-      current.length > largest.length ? current : largest
-    , clusters[0]);
+    });
 
-    // Sort main group by distance to Gaza to find forward-most vessel
+    const mainGroupVessels = vesselDistances.filter(vd => Math.floor(vd.distance / BIN_SIZE_NM) === mainBin);
     mainGroupVessels.sort((a, b) => a.distance - b.distance);
-
-    // From the main group, find the forward-most vessel (leading vessel, closest to Gaza)
     const forwardVessel = mainGroupVessels[0]?.vessel || null;
     const distance = forwardVessel ? mainGroupVessels[0].distance : null;
 
