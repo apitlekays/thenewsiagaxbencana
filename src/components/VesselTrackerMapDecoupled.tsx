@@ -9,6 +9,7 @@ import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
 import Timeline from '@/components/Timeline';
 import TestPulsingAnimation from '@/components/TestPulsingAnimation';
+import pkg from '../../package.json';
 
 export default function VesselTrackerMap() {
   const disablePathways = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
@@ -168,15 +169,22 @@ export default function VesselTrackerMap() {
         }
       />
 
-      {/* Timeline Component - Always visible, loads asynchronously */}
-      <Timeline
-        timelineData={timelineData}
-        timelineRange={timelineRange}
-        incidents={incidents}
-        isVisible={true}
-        onFrameUpdate={handleFrameUpdate}
-        onPlayStateChange={handlePlayStateChange}
-      />
+      {/* Timeline Component or Lite Version badge */}
+      {!disableTimeline ? (
+        <Timeline
+          timelineData={timelineData}
+          timelineRange={timelineRange}
+          incidents={incidents}
+          isVisible={true}
+          onFrameUpdate={handleFrameUpdate}
+          onPlayStateChange={handlePlayStateChange}
+        />
+      ) : (
+        <div className="pointer-events-none select-none absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-baseline gap-2">
+          <span className="text-2xl font-extrabold text-purple-600/70 tracking-wide">Lite Version</span>
+          <span className="text-xs font-semibold text-purple-600/60">v{pkg.version}</span>
+        </div>
+      )}
       
       {/* Timeline Loading Indicator */}
       {timelineLoading && (

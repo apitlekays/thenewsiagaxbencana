@@ -2644,7 +2644,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </MapContainer>
 
       {/* Donate Button */}
-      <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
+      <div className="absolute bottom-[235px] left-4 z-[1000] w-[120px]">
         <a 
           href="https://donate.infakpalestin.com/order/form/sumudnusantara"
           target="_blank"
@@ -2657,9 +2657,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </div>
 
       {/* Livestream Button */}
-      <div className="absolute bottom-[320px] left-4 z-[1000] w-[120px]">
+      <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a
-          href="https://www.youtube.com/watch?v=uEN2bWFtpjU"
+          href="https://www.facebook.com/share/v/1BZfBiQEJp/"
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => analytics.trackLivestreamClick('map_tracker')}
