@@ -5,6 +5,7 @@ import { useVessels } from '@/hooks/queries/useVessels';
 import { useGroupedVesselPositions } from '@/hooks/useGroupedVesselPositions';
 import { useAnimationService } from '@/hooks/useAnimationService';
 import { useIncidentData } from '@/hooks/useIncidentData';
+import { useAttackStatus } from '@/hooks/useAttackStatus';
 import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
 import Timeline from '@/components/Timeline';
@@ -19,6 +20,7 @@ export default function VesselTrackerMap() {
   const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions({ enabled: !disablePathways });
   const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService({ enabled: !disableTimeline });
   const { incidents, error: incidentsError } = useIncidentData();
+  const { attackStatuses } = useAttackStatus();
   
   // Lazy Supabase client - will be created when first needed
   const getSupabase = () => createClient();
@@ -180,9 +182,19 @@ export default function VesselTrackerMap() {
           onPlayStateChange={handlePlayStateChange}
         />
       ) : (
-        <div className="pointer-events-none select-none absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex items-baseline gap-2">
-          <span className="text-2xl font-extrabold text-purple-600/70 tracking-wide">Lite Version</span>
-          <span className="text-xs font-semibold text-purple-600/60">v{pkg.version}</span>
+        <div className="pointer-events-none select-none absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
+          <div className="flex gap-4 text-sm font-bold">
+            <span className="text-red-500">
+              ATTACKED: {Object.values(attackStatuses).filter(status => status === 'attacked').length}
+            </span>
+            <span className="text-amber-500">
+              EMERGENCY: {Object.values(attackStatuses).filter(status => status === 'emergency').length}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs font-semibold text-purple-600/60">v{pkg.version}</span>
+          </div>
+          
         </div>
       )}
       

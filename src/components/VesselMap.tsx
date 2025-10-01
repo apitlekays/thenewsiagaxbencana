@@ -2883,12 +2883,21 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       
                       {/* Vessels in this origin */}
                       <div className="space-y-1 pl-4">
-                        {originVessels.map((vessel) => (
-                          <div 
-                            key={vessel.id}
-                            className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded cursor-pointer"
-                            onClick={() => handleVesselClick(vessel)}
-                          >
+                        {originVessels.map((vessel) => {
+                          const isAttacked = attackStatuses[vessel.name] === 'attacked';
+                          return (
+                            <div 
+                              key={vessel.id}
+                              className={`flex items-center gap-3 p-2 rounded cursor-pointer ${
+                                isAttacked 
+                                  ? 'bg-red-500/20 hover:bg-red-500/30' 
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                              }`}
+                              style={isAttacked ? {
+                                animation: 'blink 1s infinite'
+                              } : {}}
+                              onClick={() => handleVesselClick(vessel)}
+                            >
                             <div 
                               className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{ backgroundColor: getOriginColor(vessel.origin || null) }}
@@ -2917,8 +2926,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                               {vessel.status}
                             </div>
                             <LocateFixed className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ));
