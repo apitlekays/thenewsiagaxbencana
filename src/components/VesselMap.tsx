@@ -171,6 +171,8 @@ function FlotillaCenter({
     distance: number | null;
     eta: { days: number; hours: number } | null;
     averageSpeed: number | null;
+    gazaArrivalTime: { date: string; time: string } | null;
+    gazaArrivalTimeGMT8: { date: string; time: string } | null;
   } | null>(null);
 
   // Gaza port coordinates - memoized for performance
@@ -294,26 +296,64 @@ function FlotillaCenter({
       GAZA_PORT.lng
     );
 
-    // Calculate average speed (only vessels with speed data)
-    const vesselsWithSpeed = validVessels.filter(vessel => 
-      vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0
-    );
+    // Calculate average speed from main group vessels only (same as TestPulsingAnimation)
+    const mainGroupVesselsWithSpeed = mainGroupVessels.filter(vd => {
+      const vessel = vd.vessel as { speed_knots?: number | null };
+      return vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0;
+    });
 
     let averageSpeed: number | null = null;
     let eta: { days: number; hours: number } | null = null;
+    let gazaArrivalTime: { date: string; time: string } | null = null;
+    let gazaArrivalTimeGMT8: { date: string; time: string } | null = null;
 
-    if (vesselsWithSpeed.length > 0) {
-      const totalSpeed = vesselsWithSpeed.reduce((sum, vessel) => 
-        sum + parseFloat(vessel.speed_knots!.toString()), 0
-      );
-      averageSpeed = totalSpeed / vesselsWithSpeed.length;
+    if (mainGroupVesselsWithSpeed.length > 0) {
+      averageSpeed = mainGroupVesselsWithSpeed.reduce((sum, item) => {
+        const vessel = item.vessel as { speed_knots?: number | null };
+        const speed = vessel.speed_knots;
+        return sum + (parseFloat(speed?.toString() || '0'));
+      }, 0) / mainGroupVesselsWithSpeed.length;
 
       // Calculate ETA
       const timeInHours = distance / averageSpeed;
       const days = Math.floor(timeInHours / 24);
-      const hours = Math.floor(timeInHours % 24);
+      const hoursRemainder = Math.floor(timeInHours % 24);
 
-      eta = { days, hours };
+      eta = { days, hours: hoursRemainder };
+
+      // Calculate Gaza arrival times
+      const now = new Date();
+      const arrivalDate = new Date(now.getTime() + (timeInHours * 60 * 60 * 1000));
+      
+      // GMT+3 timezone (Gaza/Palestine timezone)
+      gazaArrivalTime = {
+        date: arrivalDate.toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: 'short',
+          timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+        }),
+        time: arrivalDate.toLocaleTimeString('en-GB', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+        })
+      };
+
+      // GMT+8 timezone (Malaysia timezone)
+      gazaArrivalTimeGMT8 = {
+        date: arrivalDate.toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: 'short',
+          timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+        }),
+        time: arrivalDate.toLocaleTimeString('en-GB', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+        })
+      };
     }
 
     setFlotillaData({
@@ -324,7 +364,9 @@ function FlotillaCenter({
       },
       distance,
       eta,
-      averageSpeed
+      averageSpeed,
+      gazaArrivalTime,
+      gazaArrivalTimeGMT8
     });
 
 
@@ -892,6 +934,8 @@ function ZoomDependentProgressDots({
     distance: number | null;
     eta: { days: number; hours: number } | null;
     averageSpeed: number | null;
+    gazaArrivalTime: { date: string; time: string } | null;
+    gazaArrivalTimeGMT8: { date: string; time: string } | null;
   } | null;
   GAZA_PORT: { lat: number; lng: number };
   calculatePointAtDistance: (lat1: number, lng1: number, lat2: number, lng2: number, distanceNm: number) => { lat: number; lng: number };
@@ -1040,6 +1084,45 @@ function ZoomDependentProgressDots({
           zIndexOffset={200}
         />
       ))}
+
+      {/* Gaza Port Arrival Time Marker */}
+      {flotillaData && flotillaData.gazaArrivalTime && (
+        <Marker
+          position={[GAZA_PORT.lat - 0.05, GAZA_PORT.lng]}
+          icon={L.divIcon({
+            html: `
+              <div style="
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 6px;
+              ">
+                <div style="
+                  background: rgba(0, 0, 0, 0.7);
+                  color: white;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 10px;
+                  font-weight: bold;
+                  white-space: nowrap;
+                  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+                  line-height: 1.1;
+                ">
+                  <div>GAZA PORT</div>
+                  <div>ETA: ${flotillaData.eta ? `${flotillaData.eta.days}d ${flotillaData.eta.hours}h` : 'N/A'}</div>
+                  ${flotillaData.gazaArrivalTime ? `<div>Arrives: ${flotillaData.gazaArrivalTime.date} ${flotillaData.gazaArrivalTime.time} GMT+3</div>` : ''}
+                  ${flotillaData.gazaArrivalTimeGMT8 ? `<div>Arrives: ${flotillaData.gazaArrivalTimeGMT8.date} ${flotillaData.gazaArrivalTimeGMT8.time} GMT+8</div>` : ''}
+                </div>
+              </div>
+            `,
+            className: 'gaza-arrival-marker',
+            iconSize: [200, 32],
+            iconAnchor: [6, 16]
+          })}
+          interactive={false}
+          zIndexOffset={250}
+        />
+      )}
     </>
   );
 }
@@ -1762,7 +1845,26 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                     {/* Footer */}
                     <div className="pt-0.5 border-t border-slate-700/50">
                       <div className="text-xs text-slate-500 font-mono text-center space-y-1">
-                        <div>TIMELINE DATA</div>
+                        <div>
+                          {(() => {
+                            // For animated vessels, show timeline frame timestamp
+                            if (timelineData && timelineData.length > 0) {
+                              const currentIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+                                ? currentTimelineFrame
+                                : timelineData.length - 1;
+                              const currentFrame = timelineData[currentIndex];
+                              if (currentFrame && currentFrame.timestamp) {
+                                return new Date(currentFrame.timestamp).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                              }
+                            }
+                            // For static vessels, show vessel timestamp
+                            if ('timestamp_utc' in vessel && vessel.timestamp_utc) {
+                              return new Date(vessel.timestamp_utc as string).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                            }
+                            // Fallback
+                            return 'NO DATA';
+                          })()}
+                        </div>
                         {vessel.name === 'Shireen' && (
                           <div className="flex justify-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -1964,7 +2066,26 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                                 {/* Footer */}
                                 <div className="pt-0.5 border-t border-slate-700/50">
                                   <div className="text-xs text-slate-500 font-mono text-center space-y-1">
-                                    <div>TIMELINE DATA</div>
+                                    <div>
+                          {(() => {
+                            // For animated vessels, show timeline frame timestamp
+                            if (timelineData && timelineData.length > 0) {
+                              const currentIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+                                ? currentTimelineFrame
+                                : timelineData.length - 1;
+                              const currentFrame = timelineData[currentIndex];
+                              if (currentFrame && currentFrame.timestamp) {
+                                return new Date(currentFrame.timestamp).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                              }
+                            }
+                            // For static vessels, show vessel timestamp
+                            if ('timestamp_utc' in vessel && vessel.timestamp_utc) {
+                              return new Date(vessel.timestamp_utc as string).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                            }
+                            // Fallback
+                            return 'NO DATA';
+                          })()}
+                        </div>
                                     {vessel.name === 'Shireen' && (
                                       <div className="flex justify-center">
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -2166,10 +2287,24 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                     <div className="pt-0.5 border-t border-slate-700/50">
                       <div className="text-xs text-slate-500 font-mono text-center space-y-1">
                         <div>
-                          {vessel.timestamp_utc ? 
-                            new Date(vessel.timestamp_utc).toISOString().replace('T', ' ').substring(0, 19) + ' UTC' :
-                            'NO DATA'
-                          }
+                          {(() => {
+                            // For animated vessels, show timeline frame timestamp
+                            if (timelineData && timelineData.length > 0) {
+                              const currentIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+                                ? currentTimelineFrame
+                                : timelineData.length - 1;
+                              const currentFrame = timelineData[currentIndex];
+                              if (currentFrame && currentFrame.timestamp) {
+                                return new Date(currentFrame.timestamp).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                              }
+                            }
+                            // For static vessels, show vessel timestamp
+                            if ('timestamp_utc' in vessel && vessel.timestamp_utc) {
+                              return new Date(vessel.timestamp_utc as string).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+                            }
+                            // Fallback
+                            return 'NO DATA';
+                          })()}
                         </div>
                         {vessel.name === 'Shireen' && (
                           <div className="flex justify-center">
@@ -2295,7 +2430,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   mission: 'Freedom Flotilla Coalition 2025',
                   cargo: 'Humanitarian aid',
                   location: 'International waters off Gaza',
-                  distance: 'Approximately 160 NM from Gaza',
+                  distance: 'Approximately 110 NM from Gaza',
                   outcome: 'Intercepted by Israeli forces',
                   casualties: 'No casualties reported',
                   status: 'Vessel and crew detained'

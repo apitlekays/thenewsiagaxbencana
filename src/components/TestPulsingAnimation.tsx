@@ -8,7 +8,7 @@ import { computationCache } from '@/lib/computationCache';
 // Gaza port coordinates - match VesselMap.tsx
 const GAZA_PORT = { lat: 31.522727, lng: 34.431667 };
 
-export default function TestPulsingAnimation() {
+export default function TestPulsingAnimation({ currentTimelineFrame }: { currentTimelineFrame?: number } = {}) {
   const [isVisible, setIsVisible] = useState(false);
   const { vessels } = useVessels();
   const { timelineData } = useAnimationService();
@@ -20,7 +20,9 @@ export default function TestPulsingAnimation() {
     
     if (timelineData && timelineData.length > 0) {
       // Use timeline data to get latest positions (same as FlotillaCenter)
-      const latestIndex = timelineData.length - 1;
+      const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+        ? currentTimelineFrame
+        : timelineData.length - 1;
 
       // Build last-known position per vessel across all frames up to the latest index
       const lastKnownByName = new Map<string, { name: string; lat: number; lng: number; origin: string | null; course: number | null; speed_knots?: number | null; speed_kmh?: number | null }>();
@@ -112,7 +114,7 @@ export default function TestPulsingAnimation() {
       eta,
       averageSpeed
     };
-  }, [vessels, timelineData]);
+  }, [vessels, timelineData, currentTimelineFrame]);
 
   useEffect(() => {
     setIsVisible(true);

@@ -141,7 +141,13 @@ export default function VesselTrackerMap() {
   return (
     <div className="relative w-full h-screen">
       {/* Test Pulsing Animation */}
-      <TestPulsingAnimation />
+      <TestPulsingAnimation 
+        currentTimelineFrame={
+          isTimelinePlaying
+            ? currentTimelineFrame
+            : (timelineData && timelineData.length > 0 ? timelineData.length - 1 : undefined)
+        }
+      />
       
       {/* Map Component */}
       <VesselMap 
