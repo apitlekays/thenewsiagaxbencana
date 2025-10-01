@@ -10,6 +10,8 @@ import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
 import Timeline from '@/components/Timeline';
 import TestPulsingAnimation from '@/components/TestPulsingAnimation';
+import IncidentsReportDrawer from '@/components/IncidentsReportDrawer';
+import { AlertTriangle } from 'lucide-react';
 import pkg from '../../package.json';
 
 export default function VesselTrackerMap() {
@@ -28,6 +30,9 @@ export default function VesselTrackerMap() {
   // Timeline state - always visible, load asynchronously
   const [animatedVessels, setAnimatedVessels] = useState<Array<{name: string, lat: number, lng: number, origin: string | null, course: number | null}> | null>(null);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
+  
+  // Incidents drawer state
+  const [isIncidentsDrawerOpen, setIsIncidentsDrawerOpen] = useState(false);
   const [currentTimelineFrame, setCurrentTimelineFrame] = useState<number>(0);
   
   // Ref to track last frame index to prevent unnecessary updates
@@ -200,6 +205,18 @@ export default function VesselTrackerMap() {
         </div>
       )}
       
+      {/* Incidents Report Button */}
+      <button
+        onClick={() => setIsIncidentsDrawerOpen(true)}
+        className="absolute top-20 right-4 z-[1000] bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/30 text-red-400 hover:text-white hover:bg-red-600/30 transition-all duration-200 px-3 py-2 rounded-lg shadow-lg backdrop-blur-sm"
+        title="View Incidents Report"
+      >
+        <div className="flex items-center space-x-2">
+          <AlertTriangle className="w-4 h-4" />
+          <span className="text-xs font-mono font-bold tracking-wider uppercase">INCIDENTS NOTES</span>
+        </div>
+      </button>
+
       {/* Timeline Loading Indicator */}
       {timelineLoading && (
         <div className="absolute bottom-4 left-4 z-[1000] bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-sm">
@@ -221,6 +238,12 @@ export default function VesselTrackerMap() {
         </div>
       )}
       */}
+      
+      {/* Incidents Report Drawer */}
+      <IncidentsReportDrawer
+        isOpen={isIncidentsDrawerOpen}
+        onClose={() => setIsIncidentsDrawerOpen(false)}
+      />
     </div>
   );
 }
