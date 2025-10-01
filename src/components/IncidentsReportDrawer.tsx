@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { X, AlertTriangle, Clock, RefreshCw } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { X, AlertTriangle, Clock, RefreshCw, ChevronUp } from 'lucide-react';
 import { useIncidentsData } from '@/hooks/useIncidentsData';
 
 interface IncidentsReportDrawerProps {
@@ -55,6 +55,43 @@ function getTimeAgo(dateTimeStr: string): string {
 
 export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsReportDrawerProps) {
   const { incidents, loading, refreshing, error, refetch } = useIncidentsData();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [showNewDataIndicator, setShowNewDataIndicator] = useState(false);
+  const [previousIncidentCount, setPreviousIncidentCount] = useState(0);
+
+  // Handle scroll position preservation and new data detection
+  useEffect(() => {
+    if (incidents.length > previousIncidentCount && previousIncidentCount > 0) {
+      // New data arrived
+      if (scrollPosition > 100) {
+        // User has scrolled down, show indicator
+        setShowNewDataIndicator(true);
+        // Auto-hide indicator after 5 seconds
+        setTimeout(() => setShowNewDataIndicator(false), 5000);
+      }
+    }
+    setPreviousIncidentCount(incidents.length);
+  }, [incidents.length, previousIncidentCount, scrollPosition]);
+
+  // Handle scroll events
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const currentScroll = scrollContainerRef.current.scrollTop;
+      setScrollPosition(currentScroll);
+    }
+  };
+
+  // Scroll to top when new data indicator is clicked
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+      setShowNewDataIndicator(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -67,7 +104,7 @@ export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsRepo
       />
       
       {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-96 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-l border-slate-700/50 shadow-2xl z-[2001] overflow-hidden animate-in slide-in-from-right duration-300 ease-out">
+      <div className="fixed top-0 right-0 h-full w-96 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-l border-slate-700/50 shadow-2xl z-[2001] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600/20 to-red-500/10 border-b border-red-500/30 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -97,7 +134,15 @@ export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsRepo
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-4 relative"
+          onScroll={handleScroll}
+          style={{ 
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(148, 163, 184, 0.3) transparent'
+          }}
+        >
           {loading && incidents.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="flex items-center space-x-2 text-slate-400">
@@ -127,8 +172,21 @@ export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsRepo
             </div>
           ) : (
             <div className="space-y-4">
+              {/* New data indicator */}
+              {showNewDataIndicator && (
+                <div className="sticky top-0 z-20 flex justify-center py-2 bg-slate-900/80 backdrop-blur-sm">
+                  <button
+                    onClick={scrollToTop}
+                    className="flex items-center space-x-2 bg-blue-600/90 hover:bg-blue-600 text-white rounded-lg px-4 py-2 shadow-lg transition-all duration-200 hover:scale-105"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                    <span className="text-sm font-mono font-bold">New incidents available</span>
+                  </button>
+                </div>
+              )}
+              
               {/* Background refresh indicator */}
-              {refreshing && (
+              {refreshing && !showNewDataIndicator && (
                 <div className="flex items-center justify-center py-2">
                   <div className="flex items-center space-x-2 text-slate-400 bg-slate-800/50 rounded-lg px-3 py-1">
                     <RefreshCw className="w-3 h-3 animate-spin" />
@@ -218,7 +276,7 @@ export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsRepo
         </div>
         
         {/* Footer */}
-        <div className="border-t border-slate-700/50 px-4 py-2">
+        <div className="border-t border-slate-700/50 px-4 py-2 flex-shrink-0">
           <div className="text-xs text-slate-500 font-mono text-center">
             {refreshing ? (
               <div className="flex items-center justify-center space-x-2">
