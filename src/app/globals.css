@@ -11,6 +11,16 @@
   }
 }
 
+/* Blinking animation for emergency vessels */
+@keyframes blink-amber {
+  0%, 50% {
+    background-color: rgba(245, 158, 11, 0.2);
+  }
+  51%, 100% {
+    background-color: rgba(245, 158, 11, 0.4);
+  }
+}
+
 /* Attack Status Pulsing Animations - Enhanced Visibility */
 .pulse-green {
   animation: pulse-green 1.5s infinite;
