@@ -44,10 +44,23 @@ function getTimeAgo(dateTimeStr: string): string {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMs < 60000) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+    if (diffHours < 24) {
+      const remainingMins = diffMins % 60;
+      if (remainingMins === 0) {
+        return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+      }
+      return `${diffHours}h ${remainingMins}m ago`;
+    }
+    if (diffDays < 7) {
+      const remainingHours = diffHours % 24;
+      if (remainingHours === 0) {
+        return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+      }
+      return `${diffDays}d ${remainingHours}h ago`;
+    }
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
   } catch {
     return 'Invalid Date';
   }
