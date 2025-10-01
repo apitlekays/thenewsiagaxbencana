@@ -71,6 +71,10 @@ export const useAnalytics = () => {
     trackEvent('location_marker_click', 'interaction', locationName);
   }, [trackEvent]);
 
+  const trackLivestreamClick = useCallback((source: string) => {
+    trackEvent('livestream_click', 'engagement', source);
+  }, [trackEvent]);
+
   return {
     trackEvent,
     trackButtonClick,
@@ -86,5 +90,6 @@ export const useAnalytics = () => {
     trackInterceptionDrawerOpen,
     trackInterceptionDrawerClose,
     trackLocationMarkerClick,
+    trackLivestreamClick,
   };
 };

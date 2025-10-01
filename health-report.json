@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-10-01T05:14:00.629Z",
+  "dataHealth": {
+    "healthy": true,
+    "vessels": 45,
+    "positions": 91881,
+    "hoursSinceLastUpdate": 0.20490055555555556,
+    "hoursSinceLastPosition": 0.26969444444444446
+  },
+  "gsfApiHealth": {
+    "success": true,
+    "responseTime": 919,
+    "vesselCount": 45,
+    "status": 200
+  },
+  "supabaseHealth": {
+    "success": true,
+    "responseTime": 171,
+    "status": "Connected"
+  },
+  "overallHealth": true
+}

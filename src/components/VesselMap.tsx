@@ -930,14 +930,57 @@ function ZoomDependentProgressDots({
         const eta = flotillaData.averageSpeed && flotillaData.averageSpeed > 0 ? {
           hours: distanceToDot / flotillaData.averageSpeed,
           days: Math.floor(distanceToDot / flotillaData.averageSpeed / 24),
-          hoursRemainder: Math.floor((distanceToDot / flotillaData.averageSpeed) % 24)
+          hoursRemainder: Math.floor((distanceToDot / flotillaData.averageSpeed) % 24),
+          minutes: Math.floor(((distanceToDot / flotillaData.averageSpeed) % 1) * 60)
         } : null;
+
+        // Calculate arrival time in GMT+3 (Gaza time) and GMT+8 for R3, R2, R1
+        let arrivalTime = null;
+        let arrivalTimeGMT8 = null;
+        if (eta) {
+          const now = new Date();
+          const arrivalDate = new Date(now.getTime() + (eta.hours * 60 * 60 * 1000));
+          
+          // GMT+3 timezone (Gaza/Palestine timezone)
+          arrivalTime = {
+            date: arrivalDate.toLocaleDateString('en-GB', { 
+              day: '2-digit', 
+              month: 'short',
+              timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+            }),
+            time: arrivalDate.toLocaleTimeString('en-GB', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+            })
+          };
+
+          // Calculate GMT+8 time for R3, R2, R1 dots
+          if (['R3', 'R2', 'R1'].includes(dot.name)) {
+            arrivalTimeGMT8 = {
+              date: arrivalDate.toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: 'short',
+                timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+              }),
+              time: arrivalDate.toLocaleTimeString('en-GB', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+              })
+            };
+          }
+        }
 
         return {
           ...dot,
           position,
           distanceToDot,
-          eta
+          eta,
+          arrivalTime,
+          arrivalTimeGMT8
         };
       });
   }, [flotillaData, GAZA_PORT, calculatePointAtDistance, calculateDistance]);
@@ -981,15 +1024,17 @@ function ZoomDependentProgressDots({
                   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
                   line-height: 1.1;
                 ">
-                  <div>${dot.name} (${dot.distance}nm)</div>
-                  <div>Dist: ${dot.distanceToDot.toFixed(1)}nm</div>
-                  ${dot.eta ? `<div>ETA: ${dot.eta.days}d ${dot.eta.hoursRemainder}h</div>` : '<div>ETA: N/A</div>'}
+                  <div>${dot.name} (${dot.distance}nm from Gaza)</div>
+                  <div>Dist: ${dot.distanceToDot.toFixed(1)}nm from vessel</div>
+                  ${dot.eta ? `<div>ETA: ${dot.eta.days}d ${dot.eta.hoursRemainder}h ${dot.eta.minutes}m</div>` : '<div>ETA: N/A</div>'}
+                  ${dot.arrivalTime ? `<div>Arrives: ${dot.arrivalTime.date} ${dot.arrivalTime.time} GMT+3</div>` : ''}
+                  ${dot.arrivalTimeGMT8 ? `<div>Arrives: ${dot.arrivalTimeGMT8.date} ${dot.arrivalTimeGMT8.time} GMT+8</div>` : ''}
                 </div>
               </div>
             `,
             className: 'progress-dot',
-            iconSize: [150, 24],
-            iconAnchor: [6, 12]
+            iconSize: [200, 32],
+            iconAnchor: [6, 16]
           })}
           interactive={false}
           zIndexOffset={200}
@@ -2470,7 +2515,21 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           onClick={() => analytics.trackDonationClick('map_tracker')}
           className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-4 py-2 rounded-lg shadow-lg transition-colors text-sm block text-center"
         >
-          Donate 🇵🇸
+          Donate
+        </a>
+      </div>
+
+      {/* Livestream Button */}
+      <div className="absolute bottom-[320px] left-4 z-[1000] w-[120px]">
+        <a
+          href="https://www.youtube.com/watch?v=uEN2bWFtpjU"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => analytics.trackLivestreamClick('map_tracker')}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow-lg transition-colors text-sm block text-center flex items-center justify-center gap-2"
+        >
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          Livestream
         </a>
       </div>
 
