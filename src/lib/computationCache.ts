@@ -170,7 +170,22 @@ class ComputationCache {
   };
 
   /**
-   * Cached actual vessel pathway computation for timeline
+   * Check if coordinates are near the anomaly point (28.999846, 40.000792)
+   * This filters out Navionics malfunction data that caused vessels to "jump" inland
+   */
+  private isAnomalyCoordinate(lat: number, lng: number): boolean {
+    const ANOMALY_LAT = 28.999846;
+    const ANOMALY_LNG = 40.000792;
+    const ANOMALY_THRESHOLD = 0.1; // ~11km radius
+    
+    return (
+      Math.abs(lat - ANOMALY_LAT) < ANOMALY_THRESHOLD &&
+      Math.abs(lng - ANOMALY_LNG) < ANOMALY_THRESHOLD
+    );
+  }
+
+  /**
+   * Cached actual vessel pathway computation for timeline with anomaly filtering
    */
   computeActualVesselPathway(
     vesselName: string,
@@ -206,7 +221,10 @@ class ComputationCache {
           const vesselInFrame = frame.vessels.find(v => v.name === vesselName);
           
           if (vesselInFrame) {
-            vesselPositions.push([vesselInFrame.lat, vesselInFrame.lng]);
+            // Filter out anomaly coordinates to prevent pathways going inland
+            if (!this.isAnomalyCoordinate(vesselInFrame.lat, vesselInFrame.lng)) {
+              vesselPositions.push([vesselInFrame.lat, vesselInFrame.lng]);
+            }
           }
         }
 
