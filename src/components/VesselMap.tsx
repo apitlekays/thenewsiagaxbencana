@@ -271,34 +271,13 @@ function FlotillaCenter({
       return;
     }
 
-    // Find the most forward vessel from the main group (not outliers)
+    // Find the most forward vessel (farthest from origin, closest to Gaza)
     // Use cached distance calculation
     const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
 
-    // Robust main-group detection using distance-to-Gaza histogram (avoids outliers)
-    const BIN_SIZE_NM = 10; // 10nm bins
-    const binCounts = new Map<number, number>();
-    vesselDistances.forEach(vd => {
-      const bin = Math.floor(vd.distance / BIN_SIZE_NM);
-      binCounts.set(bin, (binCounts.get(bin) || 0) + 1);
-    });
-
-    // Select the bin with the highest count as main group band
-    let mainBin = 0;
-    let mainBinCount = -1;
-    binCounts.forEach((count, bin) => {
-      if (count > mainBinCount) {
-        mainBinCount = count;
-        mainBin = bin;
-      }
-    });
-
-    // Collect vessels that fall into the main bin
-    const mainGroupVessels = vesselDistances.filter(vd => Math.floor(vd.distance / BIN_SIZE_NM) === mainBin);
-
-    // From the main group, find the forward-most vessel (closest to Gaza)
-    mainGroupVessels.sort((a, b) => a.distance - b.distance);
-    const forwardVessel = mainGroupVessels[0].vessel;
+    // Find the vessel that is closest to Gaza (most forward in the flotilla)
+    vesselDistances.sort((a, b) => a.distance - b.distance);
+    const forwardVessel = vesselDistances[0].vessel;
 
     // Calculate distance to Gaza port from the forward vessel
     const distance = calculateDistance(
@@ -308,8 +287,8 @@ function FlotillaCenter({
       GAZA_PORT.lng
     );
 
-    // Calculate average speed from main group vessels only (same as TestPulsingAnimation)
-    const mainGroupVesselsWithSpeed = mainGroupVessels.filter(vd => {
+    // Calculate average speed from all vessels with valid speed data
+    const vesselsWithSpeed = vesselDistances.filter(vd => {
       const vessel = vd.vessel as { speed_knots?: number | null };
       return vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0;
     });
@@ -319,12 +298,12 @@ function FlotillaCenter({
     let gazaArrivalTime: { date: string; time: string } | null = null;
     let gazaArrivalTimeGMT8: { date: string; time: string } | null = null;
 
-    if (mainGroupVesselsWithSpeed.length > 0) {
-      averageSpeed = mainGroupVesselsWithSpeed.reduce((sum, item) => {
+    if (vesselsWithSpeed.length > 0) {
+      averageSpeed = vesselsWithSpeed.reduce((sum, item) => {
         const vessel = item.vessel as { speed_knots?: number | null };
         const speed = vessel.speed_knots;
         return sum + (parseFloat(speed?.toString() || '0'));
-      }, 0) / mainGroupVesselsWithSpeed.length;
+      }, 0) / vesselsWithSpeed.length;
 
       // Calculate ETA
       const timeInHours = distance / averageSpeed;

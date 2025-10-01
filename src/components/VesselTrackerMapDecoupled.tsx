@@ -182,11 +182,11 @@ export default function VesselTrackerMap() {
           onPlayStateChange={handlePlayStateChange}
         />
       ) : (
-        <div className="pointer-events-none select-none absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
+        <div className="pointer-events-none select-none absolute bottom-4 z-[1000] flex flex-col gap-2 sm:left-1/2 sm:-translate-x-1/2 sm:items-center right-4 items-end">
           <div className="flex gap-4 text-sm font-bold sm:justify-center justify-end">
             <span className="text-red-500">
               ATTACKED: {Object.values(attackStatuses).filter(status => status === 'attacked').length}
-            </span>
+            </span><br/>
             <span className="text-amber-500">
               EMERGENCY: {Object.values(attackStatuses).filter(status => status === 'emergency').length}
             </span>
@@ -194,7 +194,6 @@ export default function VesselTrackerMap() {
           <div className="flex items-baseline gap-2">
             <span className="text-xs font-semibold text-purple-600/60">v{pkg.version} by <a href="https://www.mapim.org" className="text-blue-500">MAPIM MALAYSIA</a></span>
           </div>
-          
         </div>
       )}
       
