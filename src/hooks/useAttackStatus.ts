@@ -79,9 +79,9 @@ export function useAttackStatus() {
     fetchAttackStatus();
   }, [fetchAttackStatus]);
 
-  // Set up polling every 5 minutes
+  // Set up polling every 30 seconds
   useEffect(() => {
-    const interval = setInterval(fetchAttackStatus, 5 * 60 * 1000); // 5 minutes
+    const interval = setInterval(fetchAttackStatus, 30 * 1000); // 30 seconds
     
     return () => clearInterval(interval);
   }, [fetchAttackStatus]);

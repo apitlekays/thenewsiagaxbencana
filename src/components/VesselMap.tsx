@@ -42,7 +42,7 @@ function getOriginColor(origin: string | null): string {
 }
 
 // Function to create vessel icon using custom ship SVG
-function createVesselIcon(origin: string | null, size: number = 22): L.Icon {
+function createVesselIcon(origin: string | null, size: number = 22, hasMalaysianParticipants: boolean = false): L.Icon {
   const color = getOriginColor(origin);
   
   return new L.Icon({
@@ -60,6 +60,12 @@ function createVesselIcon(origin: string | null, size: number = 22): L.Icon {
             </g>
           </svg>
         </g>
+        ${hasMalaysianParticipants ? `
+        <!-- Malaysian participants indicator - red dot -->
+        <g transform="translate(${size - 6}, 2)">
+          <circle cx="4" cy="4" r="4" fill="#ef4444"/>
+        </g>
+        ` : ''}
       </svg>
     `),
     iconSize: [size, size],
@@ -90,7 +96,7 @@ function createCourseTriangleIcon(origin: string | null, course: number, size: n
 }
 
 // Function to create selected vessel icon with green border and pulsing effect
-function createSelectedVesselIcon(origin: string | null, size: number = 22): L.Icon {
+function createSelectedVesselIcon(origin: string | null, size: number = 22, hasMalaysianParticipants: boolean = false): L.Icon {
   const color = getOriginColor(origin);
   
   return new L.Icon({
@@ -113,6 +119,12 @@ function createSelectedVesselIcon(origin: string | null, size: number = 22): L.I
             </g>
           </svg>
         </g>
+        ${hasMalaysianParticipants ? `
+        <!-- Malaysian participants indicator - red dot -->
+        <g transform="translate(${size - 6}, 2)">
+          <circle cx="4" cy="4" r="4" fill="#ef4444"/>
+        </g>
+        ` : ''}
       </svg>
     `),
     iconSize: [size, size],
@@ -1297,6 +1309,26 @@ interface VesselMapProps {
   currentTimelineFrame?: number;
 }
 
+// Malaysian participants data
+const MALAYSIAN_PARTICIPANTS: Record<string, string[]> = {
+  'Estrella Y Manuel': ['PU Rahmat', 'Norhelmi', 'Mohd Asmawi', 'Norazman'],
+  'Huga': ['Zizi Kirana'],
+  'Alma': ['Musa Alnuwayri', 'Iylia Balqis', 'Sul Aidil'],
+  'Sirius': ['Haikal Abdullah', 'Muaz', 'Zulfadhli', 'Rusydi'],
+  'Mikeno': ['Ardell'],
+  'Inana': ['Razali Awang'],
+  'Hio': ['Heliza', 'Hazwani'],
+  'Free Willy': ['Haroqs', 'Dr Taufiq', 'Haikal'],
+  'Fair Lady': ['Zainal Rashid', 'Ustaz Muhammad'],
+  'Grande Blu': ['Danish', 'Farah Lee'],
+  'Summertime - Jong': ['Nadir Al-Nuri', 'Serieffa', 'Mazian', 'Arif Budiman']
+};
+
+// Helper function to get Malaysian participants for a vessel
+const getMalaysianParticipants = (vesselName: string): string[] => {
+  return MALAYSIAN_PARTICIPANTS[vesselName] || [];
+};
+
 export default function VesselMap({ onVesselClick, showPathways = true, vesselPositions = {}, animatedVessels, timelineData, currentTimelineFrame }: VesselMapProps) {
   const disablePathways = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
   const effectiveShowPathways = showPathways && !disablePathways;
@@ -1924,9 +1956,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               if (enrichedVessels.length > 0) {
                 return enrichedVessels.map((vessel) => {
                   const attackStatus = attackStatuses[vessel.name];
+                  const hasMalaysianParticipants = getMalaysianParticipants(vessel.name).length > 0;
                   const vesselIcon = selectedVessel?.name === vessel.name && selectedVessel?.latitude === vessel.lat && selectedVessel?.longitude === vessel.lng
-                    ? createSelectedVesselIcon(vessel.origin)
-                    : createVesselIcon(vessel.origin);
+                    ? createSelectedVesselIcon(vessel.origin, 22, hasMalaysianParticipants)
+                    : createVesselIcon(vessel.origin, 22, hasMalaysianParticipants);
 
                   return (
                     <React.Fragment key={`latest-known-${vessel.name}`}>
@@ -2121,7 +2154,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
             // Fallback to vessels table positions
             return vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => {
             const attackStatus = attackStatuses[vessel.name];
-            const vesselIcon = selectedVessel?.id === vessel.id ? createSelectedVesselIcon(vessel.origin || null) : createVesselIcon(vessel.origin || null);
+            const hasMalaysianParticipants = getMalaysianParticipants(vessel.name).length > 0;
+            const vesselIcon = selectedVessel?.id === vessel.id 
+              ? createSelectedVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants) 
+              : createVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants);
             
             
             return (
@@ -2269,6 +2305,22 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                         {vessel.latitude?.toFixed(2)}, {vessel.longitude?.toFixed(2)}
                         </div>
                         </div>
+
+                    {/* Malaysian Participants */}
+                    {(() => {
+                      const participants = getMalaysianParticipants(vessel.name);
+                      if (participants.length > 0) {
+                        return (
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                            <div className="text-xs text-yellow-300 font-mono">
+                              {participants.join(', ')}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     {/* System Status */}
                     <div className="space-y-0.5">
@@ -3332,6 +3384,24 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   </div>
                 </div>
               </div>
+
+              {/* Malaysian Participants */}
+              {(() => {
+                const participants = getMalaysianParticipants(selectedVessel.name || '');
+                if (participants.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                      <div className="bg-slate-900/50 rounded border border-slate-700/50 p-2">
+                        <div className="text-xs text-yellow-300 font-mono leading-relaxed">
+                          {participants.join(', ')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* System Status */}
               <div className="space-y-1">
