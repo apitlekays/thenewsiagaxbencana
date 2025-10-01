@@ -26,7 +26,9 @@ export interface TimelineRange {
 }
 
 // Animation Service Hook
-export function useAnimationService() {
+export function useAnimationService(options?: { enabled?: boolean }) {
+  const isDisabledViaEnv = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_TIMELINE === '1';
+  const enabled = options?.enabled !== undefined ? options.enabled : !isDisabledViaEnv;
   const [timelineData, setTimelineData] = useState<TimelineFrame[]>([]);
   const [timelineRange, setTimelineRange] = useState<TimelineRange | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +43,7 @@ export function useAnimationService() {
 
   // Debounce time range changes to prevent rapid successive API calls
   useEffect(() => {
+    if (!enabled) return; // disabled: skip debounce wiring
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
@@ -75,6 +78,13 @@ export function useAnimationService() {
 
   // Load timeline data from pre-processed timeline_frames table
   const loadTimelineData = useCallback(async () => {
+    if (!enabled) {
+      setTimelineData([]);
+      setTimelineRange(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     try {
       setIsLoading(true);
       setError(null);
@@ -144,7 +154,7 @@ export function useAnimationService() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedTimeRange]);
+  }, [debouncedTimeRange, enabled]);
 
   // Clear timeline data
   const clearTimelineData = useCallback(() => {
@@ -155,12 +165,20 @@ export function useAnimationService() {
 
   // Watch for time range filter changes and reload timeline data
   useEffect(() => {
+    if (!enabled) {
+      setTimelineData([]);
+      setTimelineRange(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     clearTimelineData();
     loadTimelineData();
-  }, [debouncedTimeRange, clearTimelineData, loadTimelineData]);
+  }, [debouncedTimeRange, clearTimelineData, loadTimelineData, enabled]);
 
   // Subscribe to realtime updates on timeline_frames and reload on change
   useEffect(() => {
+    if (!enabled) return;
     const unsubscribe = subscriptionManager.subscribeToTimelineFrames(
       () => {
         // cache is already invalidated centrally; just reload
@@ -169,7 +187,7 @@ export function useAnimationService() {
       'useAnimationService'
     );
     return unsubscribe;
-  }, [loadTimelineData]);
+  }, [loadTimelineData, enabled]);
 
   return {
     timelineData,

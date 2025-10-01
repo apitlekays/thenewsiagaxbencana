@@ -11,9 +11,12 @@ import Timeline from '@/components/Timeline';
 import TestPulsingAnimation from '@/components/TestPulsingAnimation';
 
 export default function VesselTrackerMap() {
+  const disablePathways = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
+  const disableTimeline = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_TIMELINE === '1';
+
   const { loading: vesselsLoading, error: vesselsError } = useVessels();
-  const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions();
-  const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService();
+  const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions({ enabled: !disablePathways });
+  const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService({ enabled: !disableTimeline });
   const { incidents, error: incidentsError } = useIncidentData();
   
   // Lazy Supabase client - will be created when first needed
@@ -29,8 +32,10 @@ export default function VesselTrackerMap() {
 
   // Load timeline data automatically when component mounts
   useEffect(() => {
-    loadTimelineData();
-  }, [loadTimelineData]);
+    if (!disableTimeline) {
+      loadTimelineData();
+    }
+  }, [loadTimelineData, disableTimeline]);
 
   // Log incident data updates
   useEffect(() => {
@@ -39,8 +44,8 @@ export default function VesselTrackerMap() {
     }
   }, [incidentsError]);
 
-  const loading = vesselsLoading || positionsLoading;
-  const error = vesselsError || (positionsError ? new Error(positionsError) : null);
+  const loading = vesselsLoading || (!disablePathways && positionsLoading);
+  const error = vesselsError || (!disablePathways && positionsError ? new Error(positionsError) : null);
 
   // Handle timeline frame updates
   const handleFrameUpdate = useCallback(async (frame: { vessels: Array<{name: string, lat: number, lng: number, origin: string | null, course: number | null}> }, frameIndex: number) => {

@@ -15,7 +15,9 @@ const getSupabase = () => {
   return supabaseClient;
 };
 
-export function useGroupedVesselPositions() {
+export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
+  const isDisabledViaEnv = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
+  const enabled = options?.enabled !== undefined ? options.enabled : !isDisabledViaEnv;
   const [vesselPositions, setVesselPositions] = useState<Record<string, Array<{
     id: number;
     vessel_id: number;
@@ -40,6 +42,7 @@ export function useGroupedVesselPositions() {
 
   // Debounce time range changes to prevent rapid successive API calls
   useEffect(() => {
+    if (!enabled) return; // disabled: skip any debounce wiring
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
@@ -73,6 +76,13 @@ export function useGroupedVesselPositions() {
   };
 
   const fetchGroupedPositions = useCallback(async () => {
+    if (!enabled) {
+      // Short-circuit when disabled
+      setVesselPositions({});
+      setError(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -174,9 +184,17 @@ export function useGroupedVesselPositions() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedTimeRange]);
+  }, [debouncedTimeRange, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      // Ensure clean disabled state
+      setVesselPositions({});
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     fetchGroupedPositions();
 
     // Use centralized subscription manager
@@ -186,7 +204,7 @@ export function useGroupedVesselPositions() {
     );
 
     return unsubscribe;
-  }, [fetchGroupedPositions]);
+  }, [fetchGroupedPositions, enabled]);
 
   return { vesselPositions, loading, error, refetch: fetchGroupedPositions };
 }

@@ -1298,6 +1298,8 @@ interface VesselMapProps {
 }
 
 export default function VesselMap({ onVesselClick, showPathways = true, vesselPositions = {}, animatedVessels, timelineData, currentTimelineFrame }: VesselMapProps) {
+  const disablePathways = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
+  const effectiveShowPathways = showPathways && !disablePathways;
   const { vessels, loading: vesselsLoading, error: vesselsError } = useVessels();
   const analytics = useAnalytics();
   const { attackStatuses } = useAttackStatus();
@@ -1527,7 +1529,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
   }, []);
 
   // Process vessel pathways for display
-  const vesselPathways = showPathways ? Object.entries(vesselPositions).reduce((acc, [vesselName, positions]) => {
+  const vesselPathways = effectiveShowPathways ? Object.entries(vesselPositions).reduce((acc, [vesselName, positions]) => {
     const validPositions = positions.filter(position => {
       const lat = parseFloat(position.latitude.toString());
       const lng = parseFloat(position.longitude.toString());
@@ -1675,7 +1677,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         />
         
         {/* Vessel Pathways */}
-        {showPathways && (() => {
+        {effectiveShowPathways && (() => {
           // If we have timeline data, use it for both markers and pathways to ensure alignment
           if (timelineData && timelineData.length > 0) {
             const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length

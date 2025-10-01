@@ -835,17 +835,21 @@ export async function GET() {
     positionsProcessed = posProcessed;
     errors.push(...procErrors);
 
-    // Generate timeline frames for animation playback using fresh GSF data
-    console.log('🎬 Starting timeline frame generation...');
-    const timelineStartTime = Date.now();
-    
-    try {
-      await generateTimelineFramesFromGSFData(supabase as any, gsfVessels);
-      const timelineProcessingTime = Date.now() - timelineStartTime;
-      console.log(`✅ Timeline frames generated in ${timelineProcessingTime}ms`);
-    } catch (timelineError) {
-      console.error('❌ Timeline generation error:', timelineError);
-      errors.push(`Timeline generation: ${timelineError instanceof Error ? timelineError.message : 'Unknown error'}`);
+    // Generate timeline frames only if not disabled via env
+    const disableTimeline = process.env.DISABLE_TIMELINE === '1';
+    if (!disableTimeline) {
+      console.log('🎬 Starting timeline frame generation...');
+      const timelineStartTime = Date.now();
+      try {
+        await generateTimelineFramesFromGSFData(supabase as any, gsfVessels);
+        const timelineProcessingTime = Date.now() - timelineStartTime;
+        console.log(`✅ Timeline frames generated in ${timelineProcessingTime}ms`);
+      } catch (timelineError) {
+        console.error('❌ Timeline generation error:', timelineError);
+        errors.push(`Timeline generation: ${timelineError instanceof Error ? timelineError.message : 'Unknown error'}`);
+      }
+    } else {
+      console.log('⏭️ Timeline generation disabled via DISABLE_TIMELINE=1');
     }
 
     // Get latest timestamp for monitoring
