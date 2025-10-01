@@ -1969,16 +1969,31 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           }}
                         >
                           <Popup>
-                            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-red-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
-                              {/* Header */}
-                              <div className="bg-gradient-to-r from-red-600/20 to-red-500/10 border-b border-red-500/30 px-2 py-1 rounded-t-lg mb-2">
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                                  <h3 className="text-red-400 font-mono text-xs font-bold tracking-wider uppercase">
-                                    VESSEL ATTACKED
-                                  </h3>
-                                </div>
-                              </div>
+                            {(() => {
+                              const isAttacked = attackStatus === 'attacked';
+                              const isEmergency = attackStatus === 'emergency';
+                              const borderColor = isAttacked ? 'border-red-500/30' : 'border-amber-500/30';
+                              const bgGradient = isAttacked ? 'from-slate-900 via-slate-800 to-slate-900' : 'from-amber-900/20 via-slate-800 to-amber-900/20';
+                              const headerBg = isAttacked ? 'from-red-600/20 to-red-500/10' : 'from-amber-600/20 to-amber-500/10';
+                              const headerBorder = isAttacked ? 'border-red-500/30' : 'border-amber-500/30';
+                              const dotColor = isAttacked ? 'bg-red-500' : 'bg-amber-500';
+                              const textColor = isAttacked ? 'text-red-400' : 'text-amber-400';
+                              const statusText = isAttacked ? 'VESSEL ATTACKED' : 'VESSEL EMERGENCY';
+                              const statusValueColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                              const coordColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                              const speedColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                              
+                              return (
+                                <div className={`bg-gradient-to-br ${bgGradient} border ${borderColor} rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]`}>
+                                  {/* Header */}
+                                  <div className={`bg-gradient-to-r ${headerBg} border-b ${headerBorder} px-2 py-1 rounded-t-lg mb-2`}>
+                                    <div className="flex items-center space-x-1">
+                                      <div className={`w-1.5 h-1.5 ${dotColor} rounded-full animate-pulse`}></div>
+                                      <h3 className={`${textColor} font-mono text-xs font-bold tracking-wider uppercase`}>
+                                        {statusText}
+                                      </h3>
+                                    </div>
+                                  </div>
 
                               {/* Content */}
                               <div className="space-y-2">
@@ -1992,8 +2007,27 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                                 <div className="space-y-0.5">
                                   <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
                                   <div className="flex items-center space-x-1">
-                                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                                    <span className="text-red-300 font-mono text-xs uppercase">{attackStatus}</span>
+                                    <div className={`w-1.5 h-1.5 ${dotColor} rounded-full animate-pulse`}></div>
+                                    <span className={`${statusValueColor} font-mono text-xs uppercase`}>{attackStatus}</span>
+                                  </div>
+                                </div>
+
+                                {/* Latest Coordinates */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">COORDINATES</div>
+                                  <div className={`text-xs ${coordColor} font-mono`}>
+                                    {vessel.lat.toFixed(4)}, {vessel.lng.toFixed(4)}
+                                  </div>
+                                </div>
+
+                                {/* Latest Speed */}
+                                <div className="space-y-0.5">
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">SPEED</div>
+                                  <div className={`text-xs ${speedColor} font-mono`}>
+                                    {(() => {
+                                      const speed = vessel.speed_knots || (vessel.speed_kmh ? vessel.speed_kmh / 1.852 : 0);
+                                      return `${speed.toFixed(1)} knots`;
+                                    })()}
                                   </div>
                                 </div>
 
@@ -2017,6 +2051,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                                 })()}
                               </div>
                             </div>
+                              );
+                            })()}
                           </Popup>
                         </Marker>
                       ) : (
@@ -2188,16 +2224,31 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       }}
                     >
                     <Popup>
-                      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-red-500/30 rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]">
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-red-600/20 to-red-500/10 border-b border-red-500/30 px-2 py-1 rounded-t-lg mb-2">
-                          <div className="flex items-center space-x-1">
-                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                            <h3 className="text-red-400 font-mono text-xs font-bold tracking-wider uppercase">
-                              VESSEL ATTACKED
-                            </h3>
-                          </div>
-                        </div>
+                      {(() => {
+                        const isAttacked = attackStatus === 'attacked';
+                        const isEmergency = attackStatus === 'emergency';
+                        const borderColor = isAttacked ? 'border-red-500/30' : 'border-amber-500/30';
+                        const bgGradient = isAttacked ? 'from-slate-900 via-slate-800 to-slate-900' : 'from-amber-900/20 via-slate-800 to-amber-900/20';
+                        const headerBg = isAttacked ? 'from-red-600/20 to-red-500/10' : 'from-amber-600/20 to-amber-500/10';
+                        const headerBorder = isAttacked ? 'border-red-500/30' : 'border-amber-500/30';
+                        const dotColor = isAttacked ? 'bg-red-500' : 'bg-amber-500';
+                        const textColor = isAttacked ? 'text-red-400' : 'text-amber-400';
+                        const statusText = isAttacked ? 'VESSEL ATTACKED' : 'VESSEL EMERGENCY';
+                        const statusValueColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                        const coordColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                        const speedColor = isAttacked ? 'text-red-300' : 'text-amber-300';
+                        
+                        return (
+                          <div className={`bg-gradient-to-br ${bgGradient} border ${borderColor} rounded-lg shadow-2xl backdrop-blur-sm p-2 min-w-[200px]`}>
+                            {/* Header */}
+                            <div className={`bg-gradient-to-r ${headerBg} border-b ${headerBorder} px-2 py-1 rounded-t-lg mb-2`}>
+                              <div className="flex items-center space-x-1">
+                                <div className={`w-1.5 h-1.5 ${dotColor} rounded-full animate-pulse`}></div>
+                                <h3 className={`${textColor} font-mono text-xs font-bold tracking-wider uppercase`}>
+                                  {statusText}
+                                </h3>
+                              </div>
+                            </div>
 
                         {/* Content */}
                         <div className="space-y-2">
@@ -2211,8 +2262,27 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           <div className="space-y-0.5">
                             <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
                             <div className="flex items-center space-x-1">
-                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                              <span className="text-red-300 font-mono text-xs uppercase">{attackStatus}</span>
+                              <div className={`w-1.5 h-1.5 ${dotColor} rounded-full animate-pulse`}></div>
+                              <span className={`${statusValueColor} font-mono text-xs uppercase`}>{attackStatus}</span>
+                            </div>
+                          </div>
+
+                          {/* Latest Coordinates */}
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">COORDINATES</div>
+                            <div className={`text-xs ${coordColor} font-mono`}>
+                              {parseFloat(vessel.latitude!.toString()).toFixed(4)}, {parseFloat(vessel.longitude!.toString()).toFixed(4)}
+                            </div>
+                          </div>
+
+                          {/* Latest Speed */}
+                          <div className="space-y-0.5">
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">SPEED</div>
+                            <div className={`text-xs ${speedColor} font-mono`}>
+                              {(() => {
+                                const speed = vessel.speed_knots || (vessel.speed_kmh ? vessel.speed_kmh / 1.852 : 0);
+                                return `${speed.toFixed(1)} knots`;
+                              })()}
                             </div>
                           </div>
 
@@ -2236,6 +2306,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                           })()}
                         </div>
                       </div>
+                        );
+                      })()}
                     </Popup>
                     </Marker>
                     
@@ -2742,6 +2814,20 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         </a>
       </div>
 
+      {/* SOS Videos Button */}
+      <div className="absolute bottom-[325px] left-4 z-[1000] w-[120px]">
+        <a
+          href="https://www.youtube.com/playlist?list=PLBAqkcvbsc4P7jZ01PcOLrpCa4Iyr5m2w"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => analytics.trackLivestreamClick('sos_videos')}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg shadow-lg transition-colors text-sm block text-center flex items-center justify-center gap-2"
+        >
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          SOS Videos
+        </a>
+      </div>
+
       {/* Livestream Button */}
       <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a
@@ -3243,17 +3329,30 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </div>
 
       {/* Vessel Info Box */}
-      {selectedVessel && (
-        <div className="fixed top-4 right-4 z-[2002] w-72 sm:w-80">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-green-500/30 rounded-lg shadow-2xl backdrop-blur-sm">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-600/20 to-green-500/10 border-b border-green-500/30 px-3 py-2 rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <h3 className="text-green-400 font-mono text-xs font-bold tracking-wider uppercase">
-                    VESSEL STATUS
-                  </h3>
+      {selectedVessel && (() => {
+        const vesselStatus = attackStatuses[selectedVessel.name || ''];
+        const isAttacked = vesselStatus === 'attacked';
+        const isEmergency = vesselStatus === 'emergency';
+        
+        // Dynamic styling based on status
+        const borderColor = isAttacked ? 'border-red-500/30' : isEmergency ? 'border-amber-500/30' : 'border-green-500/30';
+        const bgGradient = isAttacked ? 'from-red-900/20 via-slate-800 to-red-900/20' : isEmergency ? 'from-amber-900/20 via-slate-800 to-amber-900/20' : 'from-slate-900 via-slate-800 to-slate-900';
+        const headerBg = isAttacked ? 'from-red-600/20 to-red-500/10' : isEmergency ? 'from-amber-600/20 to-amber-500/10' : 'from-green-600/20 to-green-500/10';
+        const headerBorder = isAttacked ? 'border-red-500/30' : isEmergency ? 'border-amber-500/30' : 'border-green-500/30';
+        const dotColor = isAttacked ? 'bg-red-500' : isEmergency ? 'bg-amber-500' : 'bg-green-500';
+        const textColor = isAttacked ? 'text-red-400' : isEmergency ? 'text-amber-400' : 'text-green-400';
+        
+        return (
+          <div className="fixed top-4 right-4 z-[2002] w-72 sm:w-80">
+            <div className={`bg-gradient-to-br ${bgGradient} border ${borderColor} rounded-lg shadow-2xl backdrop-blur-sm`}>
+              {/* Header */}
+              <div className={`bg-gradient-to-r ${headerBg} border-b ${headerBorder} px-3 py-2 rounded-t-lg`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 ${dotColor} rounded-full animate-pulse`}></div>
+                    <h3 className={`${textColor} font-mono text-xs font-bold tracking-wider uppercase`}>
+                      {isAttacked ? 'VESSEL ATTACKED' : isEmergency ? 'VESSEL EMERGENCY' : 'VESSEL STATUS'}
+                    </h3>
                   {selectedVessel?.name === 'Shireen' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       <Scale className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0 mr-2" /> LEGAL SUPPORT
@@ -3292,7 +3391,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                 
                 <div className="space-y-1">
                   <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
-                  <div className="text-green-300 font-mono text-xs">{selectedVessel.status || 'ACTIVE'}</div>
+                  <div className={`font-mono text-xs ${isAttacked ? 'text-red-300' : isEmergency ? 'text-amber-300' : 'text-green-300'}`}>
+                    {isAttacked ? 'ATTACKED' : isEmergency ? 'EMERGENCY' : (selectedVessel.status || 'ACTIVE')}
+                  </div>
                 </div>
               </div>
 
@@ -3458,8 +3559,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                 <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">SYSTEM</div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-green-400 font-mono text-xs">TRACKING</span>
+                    <div className={`w-1.5 h-1.5 ${isAttacked ? 'bg-red-500' : isEmergency ? 'bg-amber-500' : 'bg-green-500'} rounded-full animate-pulse`}></div>
+                    <span className={`font-mono text-xs ${isAttacked ? 'text-red-400' : isEmergency ? 'text-amber-400' : 'text-green-400'}`}>
+                      {isAttacked ? 'ALERT' : isEmergency ? 'WARNING' : 'TRACKING'}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
@@ -3492,7 +3595,8 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
