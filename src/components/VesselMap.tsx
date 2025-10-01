@@ -2003,7 +2003,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                                   if (participants.length > 0) {
                                     return (
                                       <div className="space-y-0.5">
-                                        <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                                        <div className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                                          <img src="/MY.png" alt="Malaysia" className="w-3 h-3" />
+                                          MALAYSIAN PARTICIPANTS
+                                        </div>
                                         <div className="text-xs text-yellow-300 font-mono">
                                           {participants.join(', ')}
                                         </div>
@@ -2219,7 +2222,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                             if (participants.length > 0) {
                               return (
                                 <div className="space-y-0.5">
-                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                                  <div className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                                    <img src="/MY.png" alt="Malaysia" className="w-3 h-3" />
+                                    MALAYSIAN PARTICIPANTS
+                                  </div>
                                   <div className="text-xs text-yellow-300 font-mono">
                                     {participants.join(', ')}
                                   </div>
@@ -2337,7 +2343,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                       if (participants.length > 0) {
                         return (
                           <div className="space-y-0.5">
-                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                              <img src="/MY.png" alt="Malaysia" className="w-3 h-3" />
+                              MALAYSIAN PARTICIPANTS
+                            </div>
                             <div className="text-xs text-yellow-300 font-mono">
                               {participants.join(', ')}
                             </div>
@@ -2888,7 +2897,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                               <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
                                 {vessel.name || `Vessel ${vessel.id}`}
                                 {getMalaysianParticipants(vessel.name).length > 0 && (
-                                  <span className="text-sm">🇲🇾</span>
+                                  <img src="/MY.png" alt="Malaysia" className="w-4 h-4" />
                                 )}
                                 {(vessel.name === 'Johnny M' || vessel.name === 'Nusantara' || vessel.name === 'Shireen' || vessel.name === 'Summertime - Jong') && (
                                   <Eye 
@@ -3419,7 +3428,10 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                 if (participants.length > 0) {
                   return (
                     <div className="space-y-2">
-                      <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">🇲🇾 MALAYSIAN PARTICIPANTS</div>
+                      <div className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                        <img src="/MY.png" alt="Malaysia" className="w-3 h-3" />
+                        MALAYSIAN PARTICIPANTS
+                      </div>
                       <div className="bg-slate-900/50 rounded border border-slate-700/50 p-2">
                         <div className="text-xs text-yellow-300 font-mono leading-relaxed">
                           {participants.join(', ')}
