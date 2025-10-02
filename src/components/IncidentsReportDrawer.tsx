@@ -67,11 +67,18 @@ function getTimeAgo(dateTimeStr: string): string {
 }
 
 export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsReportDrawerProps) {
-  const { incidents, loading, refreshing, error, refetch } = useIncidentsData();
+  const { incidents, loading, refreshing, error, hasInitialized, refetch, initialize } = useIncidentsData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showNewDataIndicator, setShowNewDataIndicator] = useState(false);
   const [previousIncidentCount, setPreviousIncidentCount] = useState(0);
+
+  // Initialize data when drawer opens
+  useEffect(() => {
+    if (isOpen && !hasInitialized) {
+      initialize();
+    }
+  }, [isOpen, hasInitialized, initialize]);
 
   // Handle scroll position preservation and new data detection
   useEffect(() => {
@@ -156,11 +163,14 @@ export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsRepo
             scrollbarColor: 'rgba(148, 163, 184, 0.3) transparent'
           }}
         >
-          {loading && incidents.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="flex items-center space-x-2 text-slate-400">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span className="text-sm font-mono">Loading incidents...</span>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="flex flex-col items-center space-y-4 text-slate-400">
+                <RefreshCw className="w-8 h-8 animate-spin" />
+                <div className="text-center">
+                  <div className="text-sm font-mono font-bold">Loading incidents...</div>
+                  <div className="text-xs font-mono mt-1">Fetching data from Google Sheets</div>
+                </div>
               </div>
             </div>
           ) : error && incidents.length === 0 ? (

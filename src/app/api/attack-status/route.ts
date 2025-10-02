@@ -63,15 +63,22 @@ export async function GET() {
     }
 
     console.log('Fetching fresh attack status data from Google Sheets');
-    const response = await fetchWithRetry(
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXd6UHeb_ayDrGm_G61cmHMsAZcjOPbM8yfwXQdymVxCBOomvhdTFsl3gEVnH5l6T4WUQGIamgEO/pub?output=csv'
-    );
+    const googleSheetsUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXd6UHeb_ayDrGm_G61cmHMsAZcjOPbM8yfwXQdymVxCBOomvhdTFsl3gEVnH5l6T4WUQGIamgEO/pub?output=csv';
+    console.log('Google Sheets URL:', googleSheetsUrl);
+    
+    const response = await fetchWithRetry(googleSheetsUrl);
 
     const csvText = await response.text();
     
     // Debug logging
     console.log('CSV Response length:', csvText.length);
     console.log('CSV Preview:', csvText.substring(0, 200));
+    
+    // Check if response contains error
+    if (csvText.includes('error') || csvText.includes('Error') || csvText.includes('ERROR')) {
+      console.error('Google Sheets returned error:', csvText);
+      throw new Error(`Google Sheets error: ${csvText.substring(0, 100)}`);
+    }
     
     // Parse CSV data
     const lines = csvText.trim().split('\n');

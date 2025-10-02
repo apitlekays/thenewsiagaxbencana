@@ -6,7 +6,6 @@ import Link from 'next/link';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVessels, useVesselPositions } from '@/hooks/queries/useVessels';
 import { useAnalytics } from '@/hooks/useAnalytics';
-import { useAttackStatus } from '@/hooks/useAttackStatus';
 import { createPulsingVesselIcon } from './PulsingVesselIcon';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1286,6 +1285,7 @@ interface VesselMapProps {
     }>;
   }>;
   currentTimelineFrame?: number;
+  attackStatuses?: { [vesselName: string]: 'attacked' | 'emergency' };
 }
 
 // Malaysian participants data
@@ -1308,12 +1308,11 @@ const getMalaysianParticipants = (vesselName: string): string[] => {
   return MALAYSIAN_PARTICIPANTS[vesselName] || [];
 };
 
-export default function VesselMap({ onVesselClick, showPathways = true, vesselPositions = {}, animatedVessels, timelineData, currentTimelineFrame }: VesselMapProps) {
+export default function VesselMap({ onVesselClick, showPathways = true, vesselPositions = {}, animatedVessels, timelineData, currentTimelineFrame, attackStatuses = {} }: VesselMapProps) {
   const disablePathways = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_PATHWAYS === '1';
   const effectiveShowPathways = showPathways && !disablePathways;
   const { vessels, loading: vesselsLoading, error: vesselsError } = useVessels();
   const analytics = useAnalytics();
-  const { attackStatuses } = useAttackStatus();
   const [latestDataTimestamp, setLatestDataTimestamp] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [mapRef, setMapRef] = useState<L.Map | null>(null);

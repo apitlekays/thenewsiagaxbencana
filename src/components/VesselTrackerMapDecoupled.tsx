@@ -22,7 +22,7 @@ export default function VesselTrackerMap() {
   const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions({ enabled: !disablePathways });
   const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService({ enabled: !disableTimeline });
   const { incidents, error: incidentsError } = useIncidentData();
-  const { attackStatuses } = useAttackStatus();
+  const { attackStatuses, initialize: initializeAttackStatus } = useAttackStatus();
   
   // Lazy Supabase client - will be created when first needed
   const getSupabase = () => createClient();
@@ -44,6 +44,11 @@ export default function VesselTrackerMap() {
       loadTimelineData();
     }
   }, [loadTimelineData, disableTimeline]);
+
+  // Initialize attack status when component mounts
+  useEffect(() => {
+    initializeAttackStatus();
+  }, [initializeAttackStatus]);
 
   // Log incident data updates
   useEffect(() => {
@@ -174,6 +179,7 @@ export default function VesselTrackerMap() {
             ? currentTimelineFrame
             : (timelineData && timelineData.length > 0 ? timelineData.length - 1 : undefined)
         }
+        attackStatuses={attackStatuses}
       />
 
       {/* Timeline Component or Lite Version badge */}

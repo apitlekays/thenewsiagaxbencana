@@ -13,12 +13,14 @@ export interface AttackStatusData {
 
 export function useAttackStatus() {
   const [attackStatuses, setAttackStatuses] = useState<AttackStatusData>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const fetchAttackStatus = useCallback(async () => {
     try {
+      setLoading(true);
       setError(null);
       
       const response = await fetch('/api/attack-status');
@@ -35,32 +37,36 @@ export function useAttackStatus() {
       
       setAttackStatuses(data.attackStatuses);
       setLastChecked(new Date());
+      setHasInitialized(true);
       
     } catch (err) {
       console.error('Error fetching attack status:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+      setHasInitialized(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial fetch
+  // Set up polling only after initial fetch
   useEffect(() => {
-    fetchAttackStatus();
-  }, [fetchAttackStatus]);
-
-  // Set up polling every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(fetchAttackStatus, 30 * 1000); // 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [fetchAttackStatus]);
+    if (hasInitialized) {
+      const interval = setInterval(fetchAttackStatus, 30 * 1000); // 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [hasInitialized, fetchAttackStatus]);
 
   return {
     attackStatuses,
     loading,
     error,
     lastChecked,
-    refetch: fetchAttackStatus
+    hasInitialized,
+    refetch: fetchAttackStatus,
+    initialize: () => {
+      if (!hasInitialized) {
+        fetchAttackStatus();
+      }
+    }
   };
 }
