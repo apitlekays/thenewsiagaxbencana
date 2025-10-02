@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import createClient from '../lib/supabase/client';
 
 export interface AttackStatus {
   vessel_name: string;
@@ -23,19 +24,29 @@ export function useAttackStatus() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/attack-status');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch attack status: ${response.status}`);
+      // Fetch attack status directly from Supabase
+      const supabase = createClient();
+      const { data: supabaseData, error } = await supabase
+        .from('attack_status')
+        .select('vessel_name, status')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      if (supabaseData && supabaseData.length > 0) {
+        // Transform array data to the expected object format
+        const attackStatusesObj: AttackStatusData = {};
+        supabaseData.forEach((item: { vessel_name: string; status: 'attacked' | 'emergency' }) => {
+          attackStatusesObj[item.vessel_name] = item.status;
+        });
+        
+        setAttackStatuses(attackStatusesObj);
+      } else {
+        setAttackStatuses({});
       }
       
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch attack status');
-      }
-      
-      setAttackStatuses(data.attackStatuses);
       setLastChecked(new Date());
       setHasInitialized(true);
       
@@ -51,7 +62,7 @@ export function useAttackStatus() {
   // Set up polling only after initial fetch
   useEffect(() => {
     if (hasInitialized) {
-      const interval = setInterval(fetchAttackStatus, 300 * 1000); // 5 minutes (emergency traffic reduction)
+      const interval = setInterval(fetchAttackStatus, 30 * 1000); // 30 seconds
       return () => clearInterval(interval);
     }
   }, [hasInitialized, fetchAttackStatus]);

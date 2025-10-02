@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 // Configuration
 const GSF_API_URL = 'https://data.forensic-architecture.org/items/freedom_flotilla_vessels?limit=1000';
 const BATCH_SIZE = 5; // Process 5 vessels in parallel
-const POSITION_BATCH_SIZE = 100; // Insert 100 positions per batch
+const POSITION_BATCH_SIZE = 10; // Reduced batch size for faster processing
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
@@ -189,80 +189,41 @@ async function processVesselData(supabase: ReturnType<typeof createClient>, gsfV
 
         const vesselDbId = vesselData.id;
 
-        // Process positions data efficiently
-        if (vessel.positions) {
-          try {
-            const positions: Position[] = JSON.parse(vessel.positions);
-            console.log(`📍 Processing ${positions.length} positions for vessel ${vessel.name} (ID: ${vessel.id})`);
+        // Process positions data efficiently - OPTIMIZATION: Only insert latest position
+        // Skip heavy historical position processing which was causing performance issues
+        const currentPosition = {
+          vessel_id: vesselDbId,
+          gsf_vessel_id: vessel.id,
+          latitude: parseFloat(vessel.latitude),
+          longitude: parseFloat(vessel.longitude),
+          speed_kmh: parseFloat(vessel.speed_kmh),
+          speed_knots: parseFloat(vessel.speed_knots),
+          course: parseFloat(vessel.course),
+          timestamp_utc: vessel.timestamp_utc
+        };
 
-            // Prepare all positions for batch insert
-            const positionsToInsert = [];
+        console.log(`📍 Processing latest position for vessel ${vessel.name} (ID: ${vessel.id})`);
+        
+        // Skip historical positions array processing - only save current position
+        const positionsToInsert = [currentPosition]; // Only current position, skip historical data
 
-            // Add historical positions first
-            for (const position of positions) {
-              positionsToInsert.push({
-                vessel_id: vesselDbId,
-                gsf_vessel_id: vessel.id,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                speed_kmh: position.speed_kmh,
-                speed_knots: position.speed_knots,
-                course: position.course,
-                timestamp_utc: position.timestamp_utc
-              });
-            }
+        // Insert position using upsert
+        const { error: positionError } = await (supabase as any)
+          .from('vessel_positions')
+          .upsert(currentPosition, {
+            onConflict: 'gsf_vessel_id,timestamp_utc',
+            ignoreDuplicates: true
+          });
 
-            // Add current position only if not already in historical positions
-            const currentPositionExists = positionsToInsert.some(pos =>
-              pos.timestamp_utc === vessel.timestamp_utc
-            );
-
-            if (!currentPositionExists) {
-              positionsToInsert.push({
-                vessel_id: vesselDbId,
-                gsf_vessel_id: vessel.id,
-                latitude: parseFloat(vessel.latitude),
-                longitude: parseFloat(vessel.longitude),
-                speed_kmh: parseFloat(vessel.speed_kmh),
-                speed_knots: parseFloat(vessel.speed_knots),
-                course: parseFloat(vessel.course),
-                timestamp_utc: vessel.timestamp_utc
-              });
-            }
-
-            // Insert positions in batches using upsert
-            for (let j = 0; j < positionsToInsert.length; j += POSITION_BATCH_SIZE) {
-              const positionBatch = positionsToInsert.slice(j, j + POSITION_BATCH_SIZE);
-              
-              const { error: positionError } = await (supabase as any)
-                .from('vessel_positions')
-                .upsert(positionBatch, {
-                  onConflict: 'gsf_vessel_id,timestamp_utc',
-                  ignoreDuplicates: true
-                });
-
-              if (positionError) {
-                console.error(`❌ Error storing position batch for vessel ${vessel.id}:`, positionError);
-                return { success: false, error: `Position batch ${vessel.id}: ${positionError.message}` };
-              }
-            }
-
-            return { 
-              success: true, 
-              vesselId: vessel.id,
-              positionCount: positionsToInsert.length 
-            };
-
-          } catch (parseError) {
-            console.error(`❌ Error parsing positions for vessel ${vessel.id}:`, parseError);
-            return { success: false, error: `Parse error ${vessel.id}: ${parseError instanceof Error ? parseError.message : 'Unknown error'}` };
-          }
+        if (positionError) {
+          console.error(`❌ Error storing position for vessel ${vessel.id}:`, positionError);
+          return { success: false, error: `Position ${vessel.id}: ${positionError.message}` };
         }
 
         return { 
           success: true, 
           vesselId: vessel.id,
-          positionCount: 0 
+          positionCount: 1 // Only inserting 1 position now
         };
 
       } catch (error) {
@@ -776,8 +737,9 @@ async function generateFullTimelineFrames(supabase: ReturnType<typeof createClie
 }
 
 export async function GET() {
-  const startTime = Date.now();
+  const startTime = Date.now(); 
   let vesselsProcessed = 0;
+  console.log('🔄 Starting OPTIMIZED fetch-vessel-data cron job (latest positions only)...');
   let positionsProcessed = 0;
   const errors: string[] = [];
 

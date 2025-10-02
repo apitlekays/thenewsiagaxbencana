@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/fetch-vessel-data-v2",
-      "schedule": "*/30 * * * *"
+      "path": "/api/cron/sync-sheets-data-simple?type=attack_status",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-sheets-data-simple?type=incidents", 
+      "schedule": "*/10 * * * *"
     }
   ]
 }

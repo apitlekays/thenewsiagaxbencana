@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import createClient from '@/lib/supabase/client';
+import createClient from '../lib/supabase/client';
 
 export interface IncidentReport {
   datetime: string;
@@ -22,27 +22,29 @@ export function useIncidentsData() {
         setLoading(true);
       }
       
-      const response = await fetch('/api/incidents');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch incidents: ${response.status}`);
+      // Fetch incidents directly from Supabase
+      const supabase = createClient();
+      const { data: supabaseData, error } = await supabase
+        .from('incidents_reports')
+        .select('datetime, notes_published')
+        .order('datetime', { ascending: false });
+
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
       }
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch incidents');
-      }
-      
+
       // Only update state if we have new data or this is the first load
-      if (data.incidents.length > 0 || incidents.length === 0) {
-      setIncidents(data.incidents);
-      setError(null);
-      setHasInitialized(true);
+      if (supabaseData && (supabaseData.length > 0 || incidents.length === 0)) {
+        setIncidents(supabaseData.map((item: { datetime: string; notes_published: string }) => ({
+          datetime: item.datetime,
+          notes_published: item.notes_published
+        })));
+        setError(null);
+        setHasInitialized(true);
       
       // Debug: Log the first few incidents to verify sorting
-      if (data.incidents.length > 0) {
-        console.log('Incidents sorted (newest first):', data.incidents.slice(0, 3).map((inc: IncidentReport) => {
+      if (supabaseData && supabaseData.length > 0) {
+        console.log('Incidents sorted (newest first):', supabaseData.slice(0, 3).map((inc: { datetime: string; notes_published: string }) => {
           const date = new Date(inc.datetime);
           return {
             datetime: inc.datetime,

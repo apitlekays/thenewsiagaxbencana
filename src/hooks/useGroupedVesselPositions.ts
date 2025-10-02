@@ -90,20 +90,20 @@ export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
       // Calculate date threshold for filtering
       const dateThreshold = getDateThreshold(debouncedTimeRange);
 
-      // Use deduplicated query for vessel positions
-      const queryKey = `vessel-positions:${debouncedTimeRange}:${dateThreshold || 'all'}:50000`;
+      // Use deduplicated query for latest vessel positions only
+      const queryKey = `latest-vessel-positions:${debouncedTimeRange}:${dateThreshold || 'all'}`;
       
       const { data: allPositions, error: positionsError } = await requestDeduplicator.deduplicateSupabaseQuery(
         queryKey,
         async () => {
-          // Build query with time filtering and limit
+          // Build query for latest positions per vessel only (massive optimization)
+          // Use DISTINCT ON to get only the most recent position per vessel
           let query = getSupabase()
             .from('vessel_positions')
-            .select('*')
-            .order('timestamp_utc', { ascending: true })
-            .limit(50000);
+            .select('id, vessel_id, gsf_vessel_id, latitude, longitude, speed_kmh, speed_knots, course, timestamp_utc, created_at')
+            .order('gsf_vessel_id, timestamp_utc', { ascending: false });
 
-          // Apply time range filter if not 'all'
+          // Apply time range filter if not 'all' (still useful for narrowing latest search)
           if (dateThreshold) {
             query = query.gte('timestamp_utc', dateThreshold);
           }
@@ -118,14 +118,15 @@ export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
         throw new Error(`Failed to fetch positions: ${positionsError instanceof Error ? positionsError.message : 'Unknown error'}`);
       }
 
-      // Use deduplicated query for vessels
+      // Use deduplicated query for vessels (optimized - only essential fields)
       const { data: allVessels, error: vesselsError } = await requestDeduplicator.deduplicateSupabaseQuery(
-        'vessels:active:id-gsf-name',
+        'vessels:active:optimized',
         async () => {
           const result = await getSupabase()
             .from('vessels')
-            .select('id, gsf_id, name')
-            .eq('status', 'active');
+            .select('gsf_id, name')
+            .eq('status', 'active')
+            .limit(50); // Reasonable threshold for active vessels
           return { data: result.data, error: result.error };
         },
         5 * 60 * 1000 // 5 minutes cache TTL for vessel metadata
@@ -141,7 +142,7 @@ export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
         vesselMapping[vessel.gsf_id] = vessel.name;
       });
 
-      // Group positions by vessel name
+      // Group latest positions by vessel name (only one per vessel since we ordered by timestamp DESC)
       const groupedPositions: Record<string, Array<{
         id: number;
         vessel_id: number;
@@ -155,6 +156,8 @@ export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
         created_at: string;
       }>> = {};
       
+      const processedVessels = new Set<number>(); // Track vessels we've processed (latest first)
+      
       allPositions?.forEach((position: {
         gsf_vessel_id: number;
         id: number;
@@ -167,12 +170,14 @@ export function useGroupedVesselPositions(options?: { enabled?: boolean }) {
         timestamp_utc: string;
         created_at: string;
       }) => {
-        const vesselName = vesselMapping[position.gsf_vessel_id];
-        if (vesselName) {
-          if (!groupedPositions[vesselName]) {
-            groupedPositions[vesselName] = [];
+        // Only take the first occurrence per vessel (latest position)
+        if (!processedVessels.has(position.gsf_vessel_id)) {
+          processedVessels.add(position.gsf_vessel_id);
+          
+          const vesselName = vesselMapping[position.gsf_vessel_id];
+          if (vesselName) {
+            groupedPositions[vesselName] = [position]; // Single latest position per vessel
           }
-          groupedPositions[vesselName].push(position);
         }
       });
 

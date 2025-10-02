@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { X, AlertTriangle, Clock, RefreshCw, ChevronUp } from 'lucide-react';
-import { useIncidentDataSupabase } from '@/hooks/useIncidentsDataSupabase';
+import { useIncidentsData } from '@/hooks/useIncidentsData';
 
 interface IncidentsReportDrawerProps {
   isOpen: boolean;
@@ -67,7 +67,7 @@ function getTimeAgo(dateTimeStr: string): string {
 }
 
 export default function IncidentsReportDrawer({ isOpen, onClose }: IncidentsReportDrawerProps) {
-  const { incidents, loading, refreshing, error, hasInitialized, refetch, initialize } = useIncidentDataSupabase();
+  const { incidents, loading, refreshing, error, hasInitialized, refetch, initialize } = useIncidentsData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showNewDataIndicator, setShowNewDataIndicator] = useState(false);

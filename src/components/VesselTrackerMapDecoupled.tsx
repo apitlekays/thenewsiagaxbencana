@@ -3,9 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useVessels } from '@/hooks/queries/useVessels';
 import { useGroupedVesselPositions } from '@/hooks/useGroupedVesselPositions';
-import { useLatestVesselPositions } from '@/hooks/useLatestVesselPositions';
 import { useAnimationService } from '@/hooks/useAnimationService';
-import { useIncidentDataSupabase } from '@/hooks/useIncidentsDataSupabase';
+import { useIncidentData } from '@/hooks/useIncidentData';
 import { useAttackStatus } from '@/hooks/useAttackStatus';
 import createClient from '@/lib/supabase/client';
 import VesselMap from '@/components/VesselMap';
@@ -20,10 +19,9 @@ export default function VesselTrackerMap() {
   const disableTimeline = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DISABLE_TIMELINE === '1';
 
   const { loading: vesselsLoading, error: vesselsError } = useVessels();
-  // Use optimized latest positions hook instead of heavy historical data
-  const { vesselPositions, loading: positionsLoading, error: positionsError } = useLatestVesselPositions({ enabled: true });
+  const { vesselPositions, loading: positionsLoading, error: positionsError } = useGroupedVesselPositions({ enabled: !disablePathways });
   const { timelineData, timelineRange, isLoading: timelineLoading, loadTimelineData } = useAnimationService({ enabled: !disableTimeline });
-  const { error: incidentsError } = useIncidentDataSupabase();
+  const { incidents, error: incidentsError } = useIncidentData();
   const { attackStatuses, initialize: initializeAttackStatus } = useAttackStatus();
   
   // Lazy Supabase client - will be created when first needed
@@ -189,6 +187,7 @@ export default function VesselTrackerMap() {
         <Timeline
           timelineData={timelineData}
           timelineRange={timelineRange}
+          incidents={incidents}
           isVisible={true}
           onFrameUpdate={handleFrameUpdate}
           onPlayStateChange={handlePlayStateChange}

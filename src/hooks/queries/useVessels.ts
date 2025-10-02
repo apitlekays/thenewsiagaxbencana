@@ -106,7 +106,7 @@ export function useVesselPositions(vesselId?: number) {
         query = query.eq('gsf_vessel_id', vesselId);
       }
 
-      const { data, error } = await query.limit(50000); // Increased limit
+      const { data, error } = await query.limit(1000); // Reduced limit - only recent positions needed
 
       if (error) throw error;
       setPositions(data || []);
@@ -147,8 +147,8 @@ export function useAllVesselPositions() {
       const { data, error } = await getSupabase()
         .from('vessel_positions')
         .select('*')
-        .order('timestamp_utc', { ascending: true })
-        .limit(50000); // Explicitly set high limit to get all positions
+        .order('timestamp_utc', { ascending: false })
+        .limit(1000); // Reduced limit - get latest positions only
 
       if (error) throw error;
       setPositions(data || []);
