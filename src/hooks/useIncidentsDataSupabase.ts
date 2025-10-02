@@ -6,7 +6,7 @@ export interface IncidentReport {
   notes_published: string;
 }
 
-export function useIncidentsData() {
+export function useIncidentDataSupabase() {
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,34 +22,38 @@ export function useIncidentsData() {
         setLoading(true);
       }
       
-      const response = await fetch('/api/incidents');
+      const supabase = createClient();
+      const { data: incidentsData, error: supabaseError } = await supabase
+        .from('incidents_reports')
+        .select('*')
+        .order('datetime', { ascending: false });
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch incidents: ${response.status}`);
+      if (supabaseError) {
+        throw new Error(`Supabase error: ${supabaseError.message}`);
       }
       
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch incidents');
-      }
+      // Transform Supabase data to match expected format
+      const transformedIncidents: IncidentReport[] = incidentsData?.map((row: { datetime: string; notes_published: string }) => ({
+        datetime: row.datetime,
+        notes_published: row.notes_published
+      })) || [];
       
       // Only update state if we have new data or this is the first load
-      if (data.incidents.length > 0 || incidents.length === 0) {
-      setIncidents(data.incidents);
-      setError(null);
-      setHasInitialized(true);
-      
-      // Debug: Log the first few incidents to verify sorting
-      if (data.incidents.length > 0) {
-        console.log('Incidents sorted (newest first):', data.incidents.slice(0, 3).map((inc: IncidentReport) => {
-          const date = new Date(inc.datetime);
-          return {
-            datetime: inc.datetime,
-            parsed: isNaN(date.getTime()) ? 'Invalid Date' : date.toISOString()
-          };
-        }));
-      }
+      if (transformedIncidents.length > 0 || incidents.length === 0) {
+        setIncidents(transformedIncidents);
+        setError(null);
+        setHasInitialized(true);
+        
+        // Debug: Log the first few incidents to verify sorting
+        if (transformedIncidents.length > 0) {
+          console.log('Incidents sorted (newest first):', transformedIncidents.slice(0, 3).map((inc: IncidentReport) => {
+            const date = new Date(inc.datetime);
+            return {
+              datetime: inc.datetime,
+              parsed: isNaN(date.getTime()) ? 'Invalid Date' : date.toISOString()
+            };
+          }));
+        }
       }
       
     } catch (err) {

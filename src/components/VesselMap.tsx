@@ -270,13 +270,49 @@ function FlotillaCenter({
       return;
     }
 
-    // Find the most forward vessel (farthest from origin, closest to Gaza)
+    // Find the largest group of vessels based on their location, ignoring outliers
     // Use cached distance calculation
     const vesselDistances = computationCache.computeFlotillaDistances(validVessels, GAZA_PORT);
 
-    // Find the vessel that is closest to Gaza (most forward in the flotilla)
+    // Sort vessels by distance to Gaza
     vesselDistances.sort((a, b) => a.distance - b.distance);
-    const forwardVessel = vesselDistances[0].vessel;
+
+    // Group vessels by proximity to find the largest cluster
+    const clusters: Array<{ vessels: typeof vesselDistances; centerDistance: number; size: number }> = [];
+    const clusterThreshold = 50; // 50 nautical miles threshold for clustering
+
+    for (let i = 0; i < vesselDistances.length; i++) {
+      const currentVessel = vesselDistances[i];
+      let clusterFound = false;
+
+      // Check if this vessel belongs to any existing cluster
+      for (const cluster of clusters) {
+        if (Math.abs(currentVessel.distance - cluster.centerDistance) <= clusterThreshold) {
+          cluster.vessels.push(currentVessel);
+          cluster.size = cluster.vessels.length;
+          cluster.centerDistance = cluster.vessels.reduce((sum, v) => sum + v.distance, 0) / cluster.vessels.length;
+          clusterFound = true;
+          break;
+        }
+      }
+
+      // If no cluster found, create a new one
+      if (!clusterFound) {
+        clusters.push({
+          vessels: [currentVessel],
+          centerDistance: currentVessel.distance,
+          size: 1
+        });
+      }
+    }
+
+    // Find the largest cluster
+    const largestCluster = clusters.reduce((largest, current) => 
+      current.size > largest.size ? current : largest
+    );
+
+    // Find the most forward vessel (closest to Gaza) within the largest cluster
+    const forwardVessel = largestCluster.vessels[0].vessel;
 
     // Calculate distance to Gaza port from the forward vessel
     const distance = calculateDistance(
@@ -286,8 +322,8 @@ function FlotillaCenter({
       GAZA_PORT.lng
     );
 
-    // Calculate average speed from all vessels with valid speed data
-    const vesselsWithSpeed = vesselDistances.filter(vd => {
+    // Calculate average speed from vessels in the largest cluster with valid speed data
+    const vesselsWithSpeed = largestCluster.vessels.filter(vd => {
       const vessel = vd.vessel as { speed_knots?: number | null };
       return vessel.speed_knots && !isNaN(parseFloat(vessel.speed_knots.toString())) && parseFloat(vessel.speed_knots.toString()) > 0;
     });
@@ -360,7 +396,7 @@ function FlotillaCenter({
     });
 
 
-  }, [vessels, timelineData, currentTimelineFrame, GAZA_PORT, calculateDistance]);
+  }, [vessels, timelineData, currentTimelineFrame, GAZA_PORT]);
 
   // Render the green line and distance/ETA display
   if (!flotillaData || !flotillaData.forwardVessel) {
@@ -442,17 +478,6 @@ function FlotillaCenter({
       {/* Zoom-dependent inner circles */}
       <ZoomDependentCircles gazaPort={GAZA_PORT} />
       
-      {/* Green line from forward vessel to Gaza port */}
-      <Polyline
-        positions={[
-          [flotillaData.forwardVessel.lat, flotillaData.forwardVessel.lng],
-          [GAZA_PORT.lat, GAZA_PORT.lng]
-        ]}
-        color="#10b981"
-        weight={3}
-        opacity={0.8}
-        dashArray="10, 5"
-      />
       
       {/* Progress dots along green line - only show at zoom level 8 and above */}
       <ZoomDependentProgressDots 

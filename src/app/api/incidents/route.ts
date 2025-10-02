@@ -13,7 +13,7 @@ let cache: {
   timestamp: number;
 } | null = null;
 
-const CACHE_DURATION = 30000; // 30 seconds cache
+const CACHE_DURATION = 300000; // 5 minutes cache to reduce API calls
 
 // Retry function with exponential backoff
 async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
