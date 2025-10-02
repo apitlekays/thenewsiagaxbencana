@@ -69,7 +69,7 @@ export function useIncidentDataSupabase() {
   // Set up polling only after initial fetch
   useEffect(() => {
     if (hasInitialized) {
-      const interval = setInterval(() => fetchIncidents(true), 15000);
+      const interval = setInterval(() => fetchIncidents(true), 300000); // 5 minutes (emergency traffic reduction)
       return () => clearInterval(interval);
     }
   }, [hasInitialized]); // eslint-disable-line react-hooks/exhaustive-deps

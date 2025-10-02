@@ -51,7 +51,7 @@ export function useAttackStatus() {
   // Set up polling only after initial fetch
   useEffect(() => {
     if (hasInitialized) {
-      const interval = setInterval(fetchAttackStatus, 30 * 1000); // 30 seconds
+      const interval = setInterval(fetchAttackStatus, 300 * 1000); // 5 minutes (emergency traffic reduction)
       return () => clearInterval(interval);
     }
   }, [hasInitialized, fetchAttackStatus]);

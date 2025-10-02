@@ -69,9 +69,6 @@ export function useLatestVesselPositions(options?: { enabled?: boolean }) {
         data = rpcResult.data;
         error = rpcResult.error;
       } catch {
-        // If RPC function doesn't exist, fall back to direct query with DISTINCT ON
-        console.warn('RPC function not available, using fallback query');
-        
         // Simplified fallback: Temporarily disable until database function is created
         console.warn('Using minimal fallback - please create get_latest_vessel_data function');
         throw new Error('Database function not available - please create get_latest_vessel_data function first');
