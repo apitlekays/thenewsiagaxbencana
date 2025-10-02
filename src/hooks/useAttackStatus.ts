@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { requestDeduplicator } from '@/lib/requestDeduplicator';
 
 export interface AttackStatus {
   vessel_name: string;
@@ -22,48 +21,19 @@ export function useAttackStatus() {
     try {
       setError(null);
       
-      // Use deduplicated fetch for Google Sheets API
-      const csvText = await requestDeduplicator.deduplicateFetch(
-        'https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXd6UHeb_ayDrGm_G61cmHMsAZcjOPbM8yfwXQdymVxCBOomvhdTFsl3gEVnH5l6T4WUQGIamgEO/pub?output=csv',
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'text/csv',
-          },
-        },
-        3 * 60 * 1000 // 3 minutes TTL for attack status data
-      );
+      const response = await fetch('/api/attack-status');
       
-      // Parse CSV data
-      const lines = (csvText as string).trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
-      // Find header indices
-      const vesselNameIndex = headers.findIndex(h => h.toLowerCase().includes('vessel') || h.toLowerCase().includes('name'));
-      const statusIndex = headers.findIndex(h => h.toLowerCase().includes('status'));
-      
-      if (vesselNameIndex === -1 || statusIndex === -1) {
-        throw new Error('Invalid CSV format: missing vessel_name or status headers');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch attack status: ${response.status}`);
       }
-
-      // Parse data rows (only keep attacked and emergency)
-      const newAttackStatuses: AttackStatusData = {};
       
-      for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(',').map(cell => cell.trim().replace(/"/g, ''));
-        
-        if (row.length >= Math.max(vesselNameIndex, statusIndex) + 1) {
-          const vesselName = row[vesselNameIndex];
-          const status = row[statusIndex].toLowerCase();
-
-          // Only accept 'attacked' or 'emergency'
-          if (status === 'attacked' || status === 'emergency') {
-            newAttackStatuses[vesselName] = status as AttackStatus['status'];
-          }
-        }
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch attack status');
       }
-
-      setAttackStatuses(newAttackStatuses);
+      
+      setAttackStatuses(data.attackStatuses);
       setLastChecked(new Date());
       
     } catch (err) {
