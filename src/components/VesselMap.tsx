@@ -13,6 +13,8 @@ import { computationCache } from '@/lib/computationCache';
 import MeasuringTool from './MeasuringTool';
 import MeasuringOverlay from './MeasuringOverlay';
 import { ZoomProvider, useZoom } from '@/contexts/ZoomContext';
+import { useSecondLastVesselPositions } from '@/hooks/useSecondLastVesselPositions';
+import SecondLastPositionToggle from './SecondLastPositionToggle';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -184,6 +186,13 @@ function FlotillaCenter({
     averageSpeed: number | null;
     gazaArrivalTime: { date: string; time: string } | null;
     gazaArrivalTimeGMT8: { date: string; time: string } | null;
+    marinetteData: {
+      vessel: { lat: number; lng: number; name: string; speed_knots?: number } | null;
+      distance: number | null;
+      eta: { days: number; hours: number } | null;
+      gazaArrivalTime: { date: string; time: string } | null;
+      gazaArrivalTimeGMT8: { date: string; time: string } | null;
+    };
   } | null>(null);
 
   // Gaza port coordinates - memoized for performance
@@ -382,6 +391,109 @@ function FlotillaCenter({
       };
     }
 
+    // Calculate Marinette-specific data
+    const marinetteData = {
+      vessel: null as { lat: number; lng: number; name: string; speed_knots?: number } | null,
+      distance: null as number | null,
+      eta: null as { days: number; hours: number } | null,
+      gazaArrivalTime: null as { date: string; time: string } | null,
+      gazaArrivalTimeGMT8: null as { date: string; time: string } | null
+    };
+
+    // Find Marinette vessel using same logic as Marinette green line
+    let marinetteVessel = null;
+    
+    // Try timeline data first
+    if (timelineData && timelineData.length > 0) {
+      const latestIndex = typeof currentTimelineFrame === 'number' && currentTimelineFrame >= 0 && currentTimelineFrame < timelineData.length
+        ? currentTimelineFrame
+        : timelineData.length - 1;
+      
+      marinetteVessel = timelineData[latestIndex]?.vessels.find(
+        v => v.name && v.name.toLowerCase().includes('marinette')
+      );
+    }
+    
+    // Fallback to vessels table
+    if (!marinetteVessel) {
+      marinetteVessel = vessels.find(v => 
+        v.name && v.name.toLowerCase().includes('marinette')
+      );
+      
+      // Convert vessels table format to timeline format
+      if (marinetteVessel && marinetteVessel.latitude && marinetteVessel.longitude) {
+        marinetteVessel = {
+          name: marinetteVessel.name,
+          lat: parseFloat(marinetteVessel.latitude.toString()),
+          lng: parseFloat(marinetteVessel.longitude.toString()),
+          speed_knots: marinetteVessel.speed_knots || null
+        };
+      } else {
+        marinetteVessel = null;
+      }
+    }
+
+    // Calculate Marinette ETA if vessel is found
+    if (marinetteVessel && marinetteVessel.lat && marinetteVessel.lng) {
+      const marinetteDistance = calculateDistance(
+        marinetteVessel.lat,
+        marinetteVessel.lng,
+        GAZA_PORT.lat,
+        GAZA_PORT.lng
+      );
+
+      marinetteData.vessel = {
+        lat: marinetteVessel.lat,
+        lng: marinetteVessel.lng,
+        name: marinetteVessel.name,
+        speed_knots: (marinetteVessel.speed_knots ?? undefined)
+      };
+      marinetteData.distance = marinetteDistance;
+
+      // Calculate ETA if speed is available
+      if (marinetteVessel.speed_knots && marinetteVessel.speed_knots > 0) {
+        const timeInHours = marinetteDistance / marinetteVessel.speed_knots;
+        const days = Math.floor(timeInHours / 24);
+        const hours = Math.floor(timeInHours % 24);
+
+        marinetteData.eta = { days, hours };
+
+        // Calculate arrival times
+        const now = new Date();
+        const arrivalDate = new Date(now.getTime() + (timeInHours * 60 * 60 * 1000));
+        
+        // GMT+3 timezone (Gaza/Palestine timezone)
+        marinetteData.gazaArrivalTime = {
+          date: arrivalDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short',
+            timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+          }),
+          time: arrivalDate.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'Asia/Jerusalem'  // GMT+3 (Gaza timezone)
+          })
+        };
+
+        // GMT+8 timezone (Malaysia timezone)
+        marinetteData.gazaArrivalTimeGMT8 = {
+          date: arrivalDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short',
+            timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+          }),
+          time: arrivalDate.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'Asia/Kuala_Lumpur'  // GMT+8 (Malaysia timezone)
+          })
+        };
+      }
+    }
+
     setFlotillaData({
       forwardVessel: {
         lat: parseFloat(forwardVessel.latitude!.toString()),
@@ -392,7 +504,8 @@ function FlotillaCenter({
       eta,
       averageSpeed,
       gazaArrivalTime,
-      gazaArrivalTimeGMT8
+      gazaArrivalTimeGMT8,
+      marinetteData
     });
 
 
@@ -477,6 +590,7 @@ function FlotillaCenter({
       
       {/* Zoom-dependent inner circles */}
       <ZoomDependentCircles gazaPort={GAZA_PORT} />
+      
       
       
       {/* Progress dots along green line - only show at zoom level 8 and above */}
@@ -1100,44 +1214,7 @@ function ZoomDependentProgressDots({
         />
       ))}
 
-      {/* Gaza Port Arrival Time Marker */}
-      {flotillaData && flotillaData.gazaArrivalTime && (
-        <Marker
-          position={[GAZA_PORT.lat - 0.05, GAZA_PORT.lng]}
-          icon={L.divIcon({
-            html: `
-              <div style="
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                gap: 6px;
-              ">
-                <div style="
-                  background: rgba(0, 0, 0, 0.7);
-                  color: white;
-                  padding: 2px 6px;
-                  border-radius: 4px;
-                  font-size: 10px;
-                  font-weight: bold;
-                  white-space: nowrap;
-                  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-                  line-height: 1.1;
-                ">
-                  <div>GAZA PORT</div>
-                  <div>ETA: ${flotillaData.eta ? `${flotillaData.eta.days}d ${flotillaData.eta.hours}h` : 'N/A'}</div>
-                  ${flotillaData.gazaArrivalTime ? `<div>Arrives: ${flotillaData.gazaArrivalTime.date} ${flotillaData.gazaArrivalTime.time} GMT+3</div>` : ''}
-                  ${flotillaData.gazaArrivalTimeGMT8 ? `<div>Arrives: ${flotillaData.gazaArrivalTimeGMT8.date} ${flotillaData.gazaArrivalTimeGMT8.time} GMT+8</div>` : ''}
-                </div>
-              </div>
-            `,
-            className: 'gaza-arrival-marker',
-            iconSize: [200, 32],
-            iconAnchor: [6, 16]
-          })}
-          interactive={false}
-          zIndexOffset={250}
-        />
-      )}
+      
     </>
   );
 }
@@ -1364,6 +1441,12 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
   const [isMeasuringEnabled, setIsMeasuringEnabled] = useState(false);
   const [measuringPoints, setMeasuringPoints] = useState<Array<{ id: string; lat: number; lng: number; distance?: number }>>([]);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Second-to-last position toggle state
+  const [showSecondLastPositions, setShowSecondLastPositions] = useState(false);
+  const { secondLastPositions, loading: secondLastLoading, error: secondLastError } = useSecondLastVesselPositions({ 
+    enabled: showSecondLastPositions 
+  });
 
   // Measuring tool handlers
   const handleMeasuringToggle = () => {
@@ -1621,6 +1704,33 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
         onClear={handleClearMeasuringPoints}
         onRemovePoint={handleRemoveMeasuringPoint}
       />
+
+      {/* Second-to-Last Position Toggle */}
+      {/* <div className="absolute top-20 right-4 z-[1000]">
+        <SecondLastPositionToggle
+          enabled={showSecondLastPositions}
+          onToggle={setShowSecondLastPositions}
+        />
+      </div> */}
+
+      {/* Loading indicator for second-to-last positions */}
+      {showSecondLastPositions && secondLastLoading && (
+        <div className="absolute top-32 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-gray-200">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-green-500"></div>
+            Loading previous positions...
+          </div>
+        </div>
+      )}
+
+      {/* Error indicator for second-to-last positions */}
+      {showSecondLastPositions && secondLastError && (
+        <div className="absolute top-32 right-4 z-[1000] bg-red-50/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-red-200">
+          <div className="text-sm text-red-700">
+            Error loading positions: {secondLastError}
+          </div>
+        </div>
+      )}
 
       {/* Top Right Button Group */}
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
@@ -2202,13 +2312,26 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
               }
             }
 
-            // Fallback to vessels table positions
-            return vessels.filter(vessel => vessel.latitude && vessel.longitude).map((vessel) => {
-            const attackStatus = attackStatuses[vessel.name];
-            const hasMalaysianParticipants = getMalaysianParticipants(vessel.name).length > 0;
-            const vesselIcon = selectedVessel?.id === vessel.id 
-              ? createSelectedVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants) 
-              : createVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants);
+            // Show second-to-last positions if enabled, otherwise show current positions from vessels table
+            const dataToUse = showSecondLastPositions ? secondLastPositions : vessels.filter(vessel => vessel.latitude && vessel.longitude);
+            
+            return dataToUse.map((vesselData) => {
+              // Convert second-to-last position format to match vessels table format
+              const vessel = showSecondLastPositions && 'gsf_vessel_id' in vesselData 
+                ? {
+                    ...vesselData,
+                    id: vesselData.gsf_vessel_id,
+                    latitude: vesselData.latitude.toString(),
+                    longitude: vesselData.longitude.toString(),
+                    timestamp_utc: vesselData.timestamp_utc
+                  }
+                : vesselData as typeof vesselData;
+              
+              const attackStatus = attackStatuses[vessel.name];
+              const hasMalaysianParticipants = getMalaysianParticipants(vessel.name).length > 0;
+              const vesselIcon = selectedVessel?.id === (vessel as any).id 
+                ? createSelectedVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants) 
+                : createVesselIcon(vessel.origin || null, 22, hasMalaysianParticipants);
             
             
             return (
@@ -2339,7 +2462,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                   <Marker
                     position={[parseFloat(vessel.latitude!.toString()), parseFloat(vessel.longitude!.toString())]}
                     icon={vesselIcon}
-                    zIndexOffset={selectedVessel?.id === vessel.id ? 1000 : 0}
+                    zIndexOffset={selectedVessel?.id === (vessel as any).id ? 1000 : 0}
                     eventHandlers={{
                       click: () => onVesselClick?.(vessel)
                     }}
@@ -2379,7 +2502,9 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
                     
                       <div className="space-y-0.5">
                         <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">STATUS</div>
-                        <div className="text-green-300 font-mono text-xs">{vessel.vessel_status || 'ACTIVE'}</div>
+                        <div className={`font-mono text-xs ${showSecondLastPositions ? 'text-orange-300' : 'text-green-300'}`}>
+                          {showSecondLastPositions ? 'PREVIOUS POSITION' : (vessel.vessel_status || 'ACTIVE')}
+                        </div>
                       </div>
                     </div>
 
@@ -2818,7 +2943,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </div>
 
       {/* SOS Videos Button */}
-      <div className="absolute bottom-[325px] left-4 z-[1000] w-[120px]">
+      <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a
           href="https://www.youtube.com/playlist?list=PLBAqkcvbsc4P7jZ01PcOLrpCa4Iyr5m2w"
           target="_blank"
@@ -2832,7 +2957,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
       </div>
 
       {/* Livestream Button */}
-      <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
+      {/* <div className="absolute bottom-[280px] left-4 z-[1000] w-[120px]">
         <a
           href="https://www.facebook.com/share/v/1BZfBiQEJp/"
           target="_blank"
@@ -2843,7 +2968,7 @@ export default function VesselMap({ onVesselClick, showPathways = true, vesselPo
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
           Livestream
         </a>
-      </div>
+      </div> */}
 
       {/* Animated Legend */}
         <div 

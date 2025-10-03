@@ -103,7 +103,7 @@ async function syncAttackStatus(csvText: string) {
   console.log(`✅ Parsed ${data.length} attack status records`);
   
   // Update Supabase directly via HTTP
-  const supabaseUrl = `https://${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
@@ -188,7 +188,7 @@ async function syncIncidents(csvText: string) {
   console.log(`✅ Parsed ${data.length} incident records`);
 
   // Check for new incidents to avoid duplicates
-  const supabaseUrl = `https://${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
@@ -227,7 +227,8 @@ async function syncIncidents(csvText: string) {
     headers: {
       'Authorization': `Bearer ${supabaseKey}`,
       'Content-Type': 'application/json',
-      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+      'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      'Prefer': 'resolution=merge-duplicates' // enables REST upsert
     },
     body: JSON.stringify(newIncidents.map(item => ({
       datetime: item.datetime,
@@ -254,8 +255,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
     
-    const supabaseProjectId = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID;
-    const functionUrl = `https://${supabaseProjectId}.supabase.co/functions/v1/sync-google-sheets?type=${type}`;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const functionUrl = `${supabaseUrl}/functions/v1/sync-google-sheets?type=${type}`;
     
     console.log(`📡 Calling Supabase Edge Function: ${functionUrl}`);
     

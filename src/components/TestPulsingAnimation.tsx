@@ -149,7 +149,7 @@ export default function TestPulsingAnimation({ currentTimelineFrame }: { current
         </div>
 
         {/* Estimation Infobox - No Data */}
-        <div className="bg-white/95 dark:bg-slate-800/95 rounded-lg p-2 shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-sm w-[140px]">
+        {/* <div className="bg-white/95 dark:bg-slate-800/95 rounded-lg p-2 shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-sm w-[140px]">
           <div className="space-y-2">
             <div className="text-center">
               <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -177,7 +177,7 @@ export default function TestPulsingAnimation({ currentTimelineFrame }: { current
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     );
   }
@@ -211,7 +211,7 @@ export default function TestPulsingAnimation({ currentTimelineFrame }: { current
       </div>
 
       {/* Estimation Infobox */}
-      <div className="bg-white/95 dark:bg-slate-800/95 rounded-lg p-2 shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-sm w-[140px]">
+      {/* <div className="bg-white/95 dark:bg-slate-800/95 rounded-lg p-2 shadow-lg border border-slate-200 dark:border-slate-700 backdrop-blur-sm w-[140px]">
         <div className="space-y-2">
           <div className="text-center">
             <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -245,7 +245,7 @@ export default function TestPulsingAnimation({ currentTimelineFrame }: { current
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

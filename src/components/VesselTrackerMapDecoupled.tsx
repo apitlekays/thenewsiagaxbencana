@@ -194,14 +194,14 @@ export default function VesselTrackerMap() {
         />
       ) : (
         <div className="pointer-events-none select-none absolute bottom-4 z-[1000] flex flex-col gap-2 sm:left-1/2 sm:-translate-x-1/2 sm:items-center right-4 items-end">
-          <div className="flex flex-col gap-1 text-sm font-bold sm:items-center items-end">
+          {/* <div className="flex flex-col gap-1 text-sm font-bold sm:items-center items-end">
             <span className="text-red-500">
               ATTACKED: {Object.values(attackStatuses).filter(status => status === 'attacked').length}
             </span>
             <span className="text-amber-500">
               EMERGENCY: {Object.values(attackStatuses).filter(status => status === 'emergency').length}
             </span>
-          </div>
+          </div> */}
           <div className="flex items-baseline gap-2">
             <span className="text-xs font-semibold text-purple-600/60"><a href="https://www.mapim.org" className="text-blue-500">MAPIM MALAYSIA</a></span>
           </div>
